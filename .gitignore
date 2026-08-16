@@ -42,3 +42,20 @@ terraform.rc
 # Optional: ignore plan files saved before destroying Terraform configuration
 # Uncomment the line below if you want to ignore planout files.
 # planout
+
+# IDE / AI assistant
+.idea/
+.junie/
+CLAUDE.md
+
+# macOS
+.DS_Store
+
+# Python (appointments-app/.gitignore covers its own subtree)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Original ACI starter archive, already extracted to appointments-app/
+environment.zip

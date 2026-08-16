@@ -1,0 +1,108 @@
+{% extends "appointments/base.html" %}
+{% load url_extras %}
+{% block content %}
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-primary" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+{% if announcements %}
+    {% for announcement in announcements %}
+        <div class="alert alert-secondary" role="alert">
+            {{ announcement }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+    <h2>Services</h2>
+
+    <div class="row row-cols-1 row-cols-md-3 mb-3 text-center">
+        {% for service in services_all %}
+        <div class="col">
+            <div class="card mb-4 rounded-3 shadow-sm {% if service.service_id == selected_service_id %}border-primary{% endif %}">
+                <div class="card-body">
+                    <h3 class="card-title">{{service.service_name}}</h3>
+                    <ul class="list-unstyled mt-3 mb-4">
+                        <li>{{service.description}}</li>
+                        <li>${{service.price}}</li>
+                        <li>{{service.duration}} minutes</li>
+                      </ul>
+                    <a class="w-100 btn btn-lg {% if service.service_id == selected_service_id %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-service' service.service_id %}#hairdresser">Select</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <hr>
+
+    {% if hairdressers_all %}
+    <h2 id="hairdresser">Hairdressers</h2>
+    <div class="row row-cols-1 row-cols-md-3 mb-3 text-center">
+        {% for hairdresser in hairdressers_all %}
+        <div class="col">
+            <div class="card mb-4 rounded-3 shadow-sm {% if hairdresser.hairdresser_id == selected_hairdresser_id %}border-primary{% endif %}">
+                <div class="card-body">
+                    <h3 class="card-title">{{hairdresser.first_name}} {{hairdresser.last_name}}</h3>
+                    <i class="bi bi-file-person" style="font-size: 4rem; "></i>
+                    <a class="w-100 btn btn-lg {% if hairdresser.hairdresser_id == selected_hairdresser_id %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-hairdresser' selected_service_id hairdresser.hairdresser_id %}#date">Select</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <hr>
+    {% endif %}
+
+
+    {% if dates_all %}
+    <h2 id="date">Date</h2>
+
+    {% for date in dates_all %}
+    <a class="btn {% if date.1 == selected_date %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-date' selected_service_id selected_hairdresser_id date.1 %}#time">
+            {{date.0}}
+        </a>
+    {% endfor %}
+
+    <hr>
+    {% endif %}
+
+
+    {% if start_times_all %}
+    <h2 id="time">Time</h2>
+    <p>{{start_times_available_count}} start times available</p>
+
+    <form method="post" action="{% relative_url 'create' %}">
+        {% csrf_token %}
+        <input type="hidden" name="service" value="{{selected_service_id}}">
+        <input type="hidden" name="hairdresser" value="{{selected_hairdresser_id}}">
+        <input type="hidden" name="date" value="{{selected_date}}">
+
+        <div class="mb-3">
+        {% for time in start_times_all %}
+            <input
+                type="radio"
+                class="btn-check"
+                value="{{time.time_formatted}}"
+                name="appointment_time"
+                id="{{time.time_formatted}}"
+                required {% if time.is_blocked %}disabled{% endif %}>
+            <label class="btn btn-outline-primary" for="{{time.time_formatted}}">{{time.time_formatted}}</label>
+        {% endfor %}
+        </div>
+
+        <div class="mb-3">
+        <label for="customer_contact" class="form-label">Contact details:</label>
+        <div class="input-group">
+            <textarea id="customer_contact" name="customer_contact" class="form-control" required></textarea>
+        </div>
+        </div>
+
+        <input type="submit" class="btn btn-primary" value="Confirm">
+    </form>
+    <hr>
+    {% endif %}
+
+{% endblock %}

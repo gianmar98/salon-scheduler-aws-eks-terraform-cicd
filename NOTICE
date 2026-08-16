@@ -1,0 +1,8 @@
+salon-scheduler-aws-eks-terraform-cicd
+
+The Django application in appointments-app/ was provided by the Amazon Cloud
+Institute (ACI) as starter code for Capstone 2. All source in that directory
+is the work of ACI, not of this repository's author.
+
+Any files added by the repository author will be noted here as they are
+introduced.

@@ -1,0 +1,4 @@
+[run]
+omit =
+    hairdresser_django/wsgi.py
+    manage.py
