@@ -55,4 +55,15 @@ class AppointmentsIndexViewTests(TestCase):
             },
         )
 
-        # FIX THIS: Test that the time is no longer available.
+        #Test that the time is no longer available.
+        response = self.client.get(
+            reverse("index-date", args=(SERVICE_HAIRCUT, HAIRDRESSER_1, first_date))
+        )
+        # Build a list of the blocked times.
+        blocked = [
+            t["time_formatted"]
+            for t in response.context["start_times_all"]
+            if t["is_blocked"]
+        ]
+        assert appt_time in blocked, "Blocked time not found"
+
