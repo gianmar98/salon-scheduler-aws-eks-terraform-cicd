@@ -78,6 +78,9 @@ def index(request, service_id=None, hairdresser_id=None, date_string=None):
                 )
 
                 context["start_times_all"] = start_times
+                context["start_times_available_count"] = len(
+                    [t for t in start_times if not t["is_blocked"]]
+                )
 
     return render(request, "appointments/index.html", context)
 
