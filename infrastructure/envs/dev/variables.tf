@@ -1,0 +1,79 @@
+# Copyright (c) 2026 Giancarlo Martinez
+# SPDX-License-Identifier: Apache-2.0
+
+# Project-wide ----------------------------------------------------------------------
+variable "project_region" {
+  description = "AWS region the project deploys to"
+  type        = string
+}
+
+variable "project_environment" {
+  description = "Environment name (e.g., dev, prod) — used in default_tags and the env suffix"
+  type        = string
+}
+
+variable "project_name" {
+  description = "Project name — used in default_tags"
+  type        = string
+}
+
+variable "project_owner" {
+  description = "Owner — used in default_tags"
+  type        = string
+}
+
+# DYNAMODB ---------------------------------------------------------------------------
+variable "announcements_dynamo_db_table_name" {
+  description = "Name of the announcements DynamoDB table"
+  type        = string
+}
+
+variable "announcements_table_hash_partition_key" {
+  description = "Hash/Partition key of the announcements table"
+  type        = string
+}
+
+variable "announcements_table_class" {
+  description = "Storage class for the announcements DynamoDB table"
+  type        = string
+}
+
+variable "announcements_table_RCU" {
+  description = "Read Capacity Units for the announcements table"
+  type        = number
+}
+
+variable "announcements_table_WCU" {
+  description = "Write Capacity Units for the announcements table"
+  type        = number
+}
+
+variable "announcements_table_pitr_enabled" {
+  description = "Enable point-in-time recovery (continuous rolling backup) on the announcements table"
+  type        = bool
+}
+
+variable "announcements_table_deletion_protection" {
+  description = "Block DeleteTable on the announcements table"
+  type        = bool
+}
+
+variable "announcements_table_autoscaling_enabled" {
+  description = "Enable autoscaling on the announcements table"
+  type        = bool
+}
+
+variable "announcements_table_min_RWcapacity" {
+  description = "Minimum autoscaling capacity for the announcements table"
+  type        = number
+}
+
+variable "announcements_table_max_RWcapacity" {
+  description = "Maximum autoscaling capacity for the announcements table"
+  type        = number
+}
+
+variable "announcements_table_target_scaling_val" {
+  description = "Target % of provisioned capacity to trigger autoscaling"
+  type        = number
+}
