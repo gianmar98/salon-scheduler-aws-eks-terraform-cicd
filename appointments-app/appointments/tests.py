@@ -9,7 +9,16 @@ from django.urls import reverse
 SERVICE_HAIRCUT = 1
 HAIRDRESSER_1 = 1
 
+#  pylint: disable=invalid-name, unused-argument
+def mock_scan(TableName):
+    "Mock the DynamoDB scan"
+    return {
+            "Items" : [
+                {"Contents": {"S": "Test announcement"}}
+            ]
+    }
 
+@patch('appointments.views.dynamodb.scan', mock_scan)
 class AppointmentsIndexViewTests(TestCase):
     "Tests for the index view"
 
@@ -73,4 +82,8 @@ class AppointmentsIndexViewTests(TestCase):
         available_after = response.context["start_times_available_count"]
         assert available_after < available_before, "Available count not decremented"
 
-
+    # (3) ---1
+    def test_announcements(self):
+        "Test announcements are loaded"
+        response = self.client.get(reverse("index"))
+        assert response.context["announcements"][0] == "Test announcement"

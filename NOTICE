@@ -4,5 +4,18 @@ The Django application in appointments-app/ was provided by the Amazon Cloud
 Institute (ACI) as starter code for Capstone 2. All source in that directory
 is the work of ACI, not of this repository's author.
 
-Any files added by the repository author will be noted here as they are
+This remains true of the Lab 3 changes inside appointments-app/ — the DynamoDB
+announcements read in appointments/views.py, the announcements block in
+appointments/templates/appointments/index.html, and the mock_scan and
+test_announcements additions in appointments/tests.py. Those follow ACI lab
+instructions and are ACI's content. The author's own edits in that directory are
+incidental adaptations for local tooling: reading the table name from the
+ANNOUNCEMENTS_TABLE environment variable, and the PYTHONPATH prefix in
+local_build.sh.
+
+Everything in infrastructure/ is the original work of this repository's author:
+the Terraform module and environment layout, the DynamoDB table configuration,
+and the S3 remote state backend.
+
+Any further files added by the repository author will be noted here as they are
 introduced.
