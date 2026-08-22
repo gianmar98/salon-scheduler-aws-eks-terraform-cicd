@@ -29,8 +29,13 @@ override.tf.json
 # Include override files you do wish to add to version control using negated pattern
 # !example_override.tf
 
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-# example: *tfplan*
+# Ignore plan output of command: terraform plan -out=tfplan
+*tfplan*
+planout
+
+# The dependency lock file IS committed (envs/*/.terraform.lock.hcl) — it pins provider
+# hashes so CI resolves the same versions. Only root modules carry one; modules/ do not.
+infrastructure/modules/**/.terraform.lock.hcl
 
 # Ignore CLI configuration files
 .terraformrc
@@ -47,6 +52,7 @@ terraform.rc
 .idea/
 .junie/
 CLAUDE.md
+TEMPLATES.md
 
 # macOS
 .DS_Store
@@ -59,3 +65,6 @@ venv/
 
 # Original ACI starter archive, already extracted to appointments-app/
 environment.zip
+
+# Local MCP server config (machine-specific port)
+.mcp.json
