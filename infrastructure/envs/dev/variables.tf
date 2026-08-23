@@ -77,3 +77,44 @@ variable "announcements_table_target_scaling_val" {
   description = "Target % of provisioned capacity to trigger autoscaling"
   type        = number
 }
+
+# CODEBUILD --------------------------------------------------------------------------
+variable "unittest_codebuild_project_name" {
+  description = "Name of the CodeBuild project that lints and unit-tests the Django app"
+  type        = string
+}
+
+variable "unittest_codebuild_service_role_arn" {
+  description = "ARN of the IAM service role CodeBuild assumes"
+  type        = string
+}
+
+variable "unittest_codebuild_source_location" {
+  description = "HTTPS URL of the GitHub repository CodeBuild clones"
+  type        = string
+}
+
+variable "unittest_codebuild_source_version" {
+  description = "Branch, tag, or commit ID CodeBuild builds from"
+  type        = string
+}
+
+variable "unittest_codebuild_buildspec" {
+  description = "Path to the buildspec file, relative to the repository root"
+  type        = string
+}
+
+variable "unittest_codebuild_image" {
+  description = "Managed CodeBuild image the build container runs"
+  type        = string
+}
+
+variable "unittest_codebuild_compute_type" {
+  description = "Build container size"
+  type        = string
+}
+
+variable "unittest_codebuild_build_timeout" {
+  description = "Minutes before CodeBuild aborts a running build"
+  type        = number
+}

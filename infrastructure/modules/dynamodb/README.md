@@ -56,3 +56,11 @@ All 11 are supplied by the env layer; validation lives here, not there.
 - `announcements_table_deletion_protection = true` makes `terraform destroy` fail on
   this table until it is set back to `false` **and applied**. Budget an extra apply
   when tearing the env down.
+- **Replacing the table silently orphans its autoscaling.** When the partition key
+  changed and the table was replaced, AWS deregistered the Application Auto Scaling
+  targets along with the old table. Terraform did not re-register them: the new table
+  reused the name, so `resource_id` (`table/Announcement-dev`) was byte-identical and
+  there was no diff to act on. State claimed the targets existed while AWS had dropped
+  them, and it stayed that way until a later refresh caught it. After any apply that
+  replaces this table, run `terraform plan` again and expect the autoscaling targets
+  and policies to come back as creates.

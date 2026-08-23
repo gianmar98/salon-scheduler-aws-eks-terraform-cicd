@@ -9,13 +9,16 @@ announcements read in appointments/views.py, the announcements block in
 appointments/templates/appointments/index.html, and the mock_scan and
 test_announcements additions in appointments/tests.py. Those follow ACI lab
 instructions and are ACI's content. The author's own edits in that directory are
-incidental adaptations for local tooling: reading the table name from the
-ANNOUNCEMENTS_TABLE environment variable, and the PYTHONPATH prefix in
-local_build.sh.
+incidental adaptations for local tooling and CI: reading the table name from the
+ANNOUNCEMENTS_TABLE environment variable, the PYTHONPATH prefix in
+local_build.sh, and the corresponding fixes in buildspec_unittest.yml (the
+PYTHONPATH prefix, the $CODEBUILD_SRC_DIR phase paths, the report
+base-directory entries, and the Python 3.12 runtime).
 
 Everything in infrastructure/ is the original work of this repository's author:
 the Terraform module and environment layout, the DynamoDB table configuration,
-and the S3 remote state backend.
+the CodeBuild project module and its GitHub source wiring, and the S3 remote
+state backend.
 
 Any further files added by the repository author will be noted here as they are
 introduced.

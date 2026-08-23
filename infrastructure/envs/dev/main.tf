@@ -44,3 +44,20 @@ module "announcements_dynamo_db_table" {
   announcements_table_min_RWcapacity      = var.announcements_table_min_RWcapacity
   announcements_table_target_scaling_val  = var.announcements_table_target_scaling_val
 }
+
+module "unittest_codebuild_project" {
+  source                              = "../../modules/codebuild"
+  unittest_codebuild_project_name     = "${var.unittest_codebuild_project_name}${local.env_suffix}"
+  unittest_codebuild_service_role_arn = var.unittest_codebuild_service_role_arn
+  unittest_codebuild_source_location  = var.unittest_codebuild_source_location
+  unittest_codebuild_source_version   = var.unittest_codebuild_source_version
+  unittest_codebuild_buildspec        = var.unittest_codebuild_buildspec
+  unittest_codebuild_image            = var.unittest_codebuild_image
+  unittest_codebuild_compute_type     = var.unittest_codebuild_compute_type
+  unittest_codebuild_build_timeout    = var.unittest_codebuild_build_timeout
+}
+
+# moved {
+#   from = aws_codebuild_project.unittest
+#   to   = module.unittest_codebuild_project.aws_codebuild_project.unittest
+# }
