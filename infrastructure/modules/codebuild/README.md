@@ -55,6 +55,25 @@ it are **not** here — they are account- and region-wide, shared with CodePipel
 they live in the env layer (`envs/dev/codeconnections.tf`). The module takes the
 connection ARN as an input.
 
+## One manual step before this module works
+
+**The GitHub connection cannot be fully created by Terraform.** `apply` creates it in
+`PENDING` status — an ARN with no authorization behind it. Completing the OAuth handshake
+is browser-only, and no Terraform resource can flip it to `AVAILABLE`:
+
+1. `terraform apply` — the connection is created, `PENDING`. Builds cannot clone yet.
+2. AWS console → **Developer Tools → Settings → Connections** → select it → **Update
+   pending connection**.
+3. Install the **AWS Connector for GitHub** app and grant it the repository.
+4. Status becomes `AVAILABLE`. Nothing else needs re-applying.
+
+This is once per AWS account and region, not once per environment or project — a later
+CodePipeline reuses the same connection.
+
+The alternative is a GitHub personal access token
+(`auth_type = "PERSONAL_ACCESS_TOKEN"`), which avoids the click but puts a long-lived
+secret in config and state. Not used here.
+
 Four statements across the two policies, each scoped to an ARN pattern built from the
 project name rather than `"*"`:
 
