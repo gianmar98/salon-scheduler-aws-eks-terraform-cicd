@@ -17,8 +17,9 @@ base-directory entries, and the Python 3.12 runtime).
 
 Everything in infrastructure/ is the original work of this repository's author:
 the Terraform module and environment layout, the DynamoDB table configuration,
-the CodeBuild project module and its GitHub source wiring, and the S3 remote
-state backend.
+the CodeBuild project module with its IAM service role and policies, CloudWatch log
+group, webhook, and test and coverage report groups; the CodeConnections wiring to
+GitHub; and the S3 remote state backend.
 
 Any further files added by the repository author will be noted here as they are
 introduced.

@@ -84,9 +84,24 @@ variable "unittest_codebuild_project_name" {
   type        = string
 }
 
-variable "unittest_codebuild_service_role_arn" {
-  description = "ARN of the IAM service role CodeBuild assumes"
+variable "github_connection_name" {
+  description = "Name of the CodeConnections connection to GitHub"
   type        = string
+}
+
+variable "unittest_codebuild_webhook_branch_pattern" {
+  description = "Regex the pushed ref must match to fire a build"
+  type        = string
+}
+
+variable "unittest_codebuild_webhook_file_path_pattern" {
+  description = "Regex a changed file must match to fire a build"
+  type        = string
+}
+
+variable "unittest_codebuild_log_retention_days" {
+  description = "Days CloudWatch keeps the build logs"
+  type        = number
 }
 
 variable "unittest_codebuild_source_location" {

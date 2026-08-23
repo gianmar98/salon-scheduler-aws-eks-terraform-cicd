@@ -3,11 +3,11 @@
 
 resource "aws_codebuild_project" "unittest" {
   name           = var.unittest_codebuild_project_name
-  service_role   = var.unittest_codebuild_service_role_arn
-  build_timeout  = var.unittest_codebuild_build_timeout
-  source_version = var.unittest_codebuild_source_version
+  service_role   = aws_iam_role.unittest.arn
+  build_timeout  = var.unittest_codebuild_build_timeout #mins before build is aborted
+  source_version = var.unittest_codebuild_source_version #"main" or branch chosen
 
-  artifacts {
+  artifacts { #output files, compiled code, test results, deployable packages
     type = "NO_ARTIFACTS"
   }
 
@@ -25,7 +25,8 @@ resource "aws_codebuild_project" "unittest" {
 
   logs_config {
     cloudwatch_logs {
-      status = "ENABLED"
+      status     = "ENABLED"
+      group_name = aws_cloudwatch_log_group.unittest.name
     }
 
     s3_logs {

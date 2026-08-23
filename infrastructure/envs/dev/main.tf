@@ -46,15 +46,19 @@ module "announcements_dynamo_db_table" {
 }
 
 module "unittest_codebuild_project" {
-  source                              = "../../modules/codebuild"
-  unittest_codebuild_project_name     = "${var.unittest_codebuild_project_name}${local.env_suffix}"
-  unittest_codebuild_service_role_arn = var.unittest_codebuild_service_role_arn
-  unittest_codebuild_source_location  = var.unittest_codebuild_source_location
-  unittest_codebuild_source_version   = var.unittest_codebuild_source_version
-  unittest_codebuild_buildspec        = var.unittest_codebuild_buildspec
-  unittest_codebuild_image            = var.unittest_codebuild_image
-  unittest_codebuild_compute_type     = var.unittest_codebuild_compute_type
-  unittest_codebuild_build_timeout    = var.unittest_codebuild_build_timeout
+  source                                = "../../modules/codebuild"
+  unittest_codebuild_project_name       = "${var.unittest_codebuild_project_name}${local.env_suffix}"
+  unittest_codebuild_codeconnection_arn = aws_codeconnections_connection.github.arn
+  unittest_codebuild_source_location    = var.unittest_codebuild_source_location
+  unittest_codebuild_source_version     = var.unittest_codebuild_source_version
+  unittest_codebuild_buildspec          = var.unittest_codebuild_buildspec
+  unittest_codebuild_image              = var.unittest_codebuild_image
+  unittest_codebuild_compute_type       = var.unittest_codebuild_compute_type
+  unittest_codebuild_build_timeout      = var.unittest_codebuild_build_timeout
+  unittest_codebuild_log_retention_days = var.unittest_codebuild_log_retention_days
+
+  unittest_codebuild_webhook_branch_pattern    = var.unittest_codebuild_webhook_branch_pattern
+  unittest_codebuild_webhook_file_path_pattern = var.unittest_codebuild_webhook_file_path_pattern
 }
 
 # moved {

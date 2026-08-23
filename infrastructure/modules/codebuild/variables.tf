@@ -7,12 +7,31 @@ variable "unittest_codebuild_project_name" {
   type        = string
 }
 
-variable "unittest_codebuild_service_role_arn" {
-  description = "ARN of the IAM service role CodeBuild assumes to write logs and publish reports"
+variable "unittest_codebuild_codeconnection_arn" {
+  description = "ARN of the CodeConnections connection to GitHub that CodeBuild uses to clone the source"
   type        = string
   validation {
-    condition     = can(regex("^arn:aws:iam::[0-9]{12}:role/", var.unittest_codebuild_service_role_arn))
-    error_message = "unittest_codebuild_service_role_arn must be a valid IAM role ARN."
+    condition     = can(regex("^arn:aws:code(star-)?connections:", var.unittest_codebuild_codeconnection_arn))
+    error_message = "unittest_codebuild_codeconnection_arn must be a CodeConnections connection ARN."
+  }
+}
+
+variable "unittest_codebuild_webhook_branch_pattern" {
+  description = "Regex the pushed ref must match for the webhook to fire a build"
+  type        = string
+}
+
+variable "unittest_codebuild_webhook_file_path_pattern" {
+  description = "Regex at least one changed file must match for the webhook to fire a build"
+  type        = string
+}
+
+variable "unittest_codebuild_log_retention_days" {
+  description = "Days CloudWatch keeps this project's build logs. 0 keeps them forever."
+  type        = number
+  validation {
+    condition     = contains([0, 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365], var.unittest_codebuild_log_retention_days)
+    error_message = "unittest_codebuild_log_retention_days must be a retention value CloudWatch accepts."
   }
 }
 
