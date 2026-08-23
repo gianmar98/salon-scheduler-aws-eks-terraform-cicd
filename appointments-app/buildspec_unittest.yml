@@ -5,12 +5,12 @@ phases:
     runtime-versions:
       python: 3.12
     commands:
-      - cd appointments-app
+      - cd $CODEBUILD_SRC_DIR/appointments-app
       - pip3 install -r requirements-dev.txt
 
   build:
     commands: #Run Pylint to check code and run unit tests + generate reports
-      - cd appointments-app
+      - cd $CODEBUILD_SRC_DIR/appointments-app
       - PYTHONPATH=. pylint --load-plugins pylint_django --django-settings-module=hairdresser_django.settings --ignore=migrations appointments/
       - coverage run --source='.' manage.py test appointments
       - coverage xml
