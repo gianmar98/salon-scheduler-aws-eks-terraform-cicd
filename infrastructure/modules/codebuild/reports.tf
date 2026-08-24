@@ -8,7 +8,7 @@ locals {
     #Did tests pass? (reads unittests.xml when manage.py test runs)
     #  Ex:  test_index ................... PASSED  0.04s
     #       test_index_hairdresser ....... PASSED  0.11s
-    UnitTests   = "TEST"
+    UnitTests = "TEST"
 
     #How much of code did those tests execute? (reads coverage.xml)
     #  EX: appointments/views.py ........ 94% lines, 88% branches

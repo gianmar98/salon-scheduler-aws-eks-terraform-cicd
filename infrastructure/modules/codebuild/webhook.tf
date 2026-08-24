@@ -24,7 +24,7 @@ resource "aws_codebuild_webhook" "unittest" {
     }
   }
 
-  pull_request_build_policy { #protection against CodeBuild attach (anyone opens a pull request and branch's code runs inside AWS account with service role credentials)
+  pull_request_build_policy {                       #protection against CodeBuild attach (anyone opens a pull request and branch's code runs inside AWS account with service role credentials)
     requires_comment_approval = "ALL_PULL_REQUESTS" #PR NEVER builds on its own, someone has to comment approval on the PR first (Already filtered by just "PUSH" inside my filter group type of event pattern)
     approver_roles            = ["GITHUB_WRITE", "GITHUB_MAINTAIN", "GITHUB_ADMIN"]
   }

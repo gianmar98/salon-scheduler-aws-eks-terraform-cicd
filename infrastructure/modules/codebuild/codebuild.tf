@@ -4,7 +4,7 @@
 resource "aws_codebuild_project" "unittest" {
   name           = var.unittest_codebuild_project_name
   service_role   = aws_iam_role.unittest.arn
-  build_timeout  = var.unittest_codebuild_build_timeout #mins before build is aborted
+  build_timeout  = var.unittest_codebuild_build_timeout  #mins before build is aborted
   source_version = var.unittest_codebuild_source_version #"main" or branch chosen
 
   artifacts { #output files, compiled code, test results, deployable packages
