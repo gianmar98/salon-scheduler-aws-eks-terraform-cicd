@@ -35,8 +35,9 @@ All 11 are supplied by the env layer; validation lives here, not there.
 | `unittest_codebuild_compute_type` | string | `BUILD_GENERAL1_SMALL` \| `MEDIUM` \| `LARGE` |
 | `unittest_codebuild_build_timeout` | number | 5–480 minutes |
 | `unittest_codebuild_log_retention_days` | number | CloudWatch retention; `0` keeps logs forever |
-| `unittest_codebuild_webhook_branch_pattern` | string | e.g. `^refs/heads/main$` |
-| `unittest_codebuild_webhook_file_path_pattern` | string | e.g. `^appointments-app/` — this is what scopes CI to the Django app |
+| `unittest_codebuild_artifact_bucket_name` | string | the pipeline's artifact bucket; the role reads the source zip from it |
+| `unittest_codebuild_webhook_branch_pattern` | string | **unused** while `webhook.tf` is commented out |
+| `unittest_codebuild_webhook_file_path_pattern` | string | **unused** while `webhook.tf` is commented out |
 
 ## What it creates
 
@@ -47,13 +48,40 @@ All 11 are supplied by the env layer; validation lives here, not there.
 | `aws_iam_policy.unittest_base` + attachment | logs, artifact buckets, reports |
 | `aws_iam_policy.unittest_codeconnections` + attachment | source clone through CodeConnections |
 | `aws_cloudwatch_log_group.unittest` | `/aws/codebuild/<project>`, with retention |
-| `aws_codebuild_webhook.unittest` | the GitHub trigger and its filter group |
+| `aws_codebuild_webhook.unittest` | **commented out** — see "Who triggers this project" below |
 | `aws_codebuild_report_group.unittest` | `UnitTests` (TEST) and `NewCoverage` (CODE_COVERAGE) |
 
 The CodeConnections connection and the `aws_codebuild_source_credential` that registers
 it are **not** here — they are account- and region-wide, shared with CodePipeline, so
 they live in the env layer (`envs/dev/codeconnections.tf`). The module takes the
 connection ARN as an input.
+
+## Who triggers this project
+
+**CodePipeline, not the webhook.** `webhook.tf` is commented out on purpose.
+
+Both mechanisms worked, and having both meant every push to `appointments-app/` ran
+the suite twice — once from `GitHub-Hookshot`, once from
+`codepipeline/ApplicationPipeline-dev`, about six seconds apart. Same commit, same
+report groups, twice the minutes.
+
+The pipeline won because it can do everything the webhook did:
+
+| | webhook | pipeline |
+|---|---|---|
+| branch filter | `HEAD_REF` filter | `trigger.git_configuration.push.branches` |
+| path filter | `FILE_PATH` filter | `trigger.git_configuration.push.file_paths` |
+
+The path filter is what keeps Terraform-only commits from running the Django tests, so
+it had to survive the move. It lives in `modules/codepipeline` now, and needs
+`pipeline_type = "V2"` — V1 silently ignores the `trigger` block.
+
+Verified both directions: a commit touching `appointments-app/` produces exactly one
+build with initiator `codepipeline/...`, and a commit touching only `infrastructure/`
+produces none.
+
+To go back to webhook-only, uncomment `webhook.tf` and drop the `trigger` block from the
+pipeline. The two variables above are kept for that reason.
 
 ## One manual step before this module works
 

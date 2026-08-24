@@ -133,3 +133,39 @@ variable "unittest_codebuild_build_timeout" {
   description = "Minutes before CodeBuild aborts a running build"
   type        = number
 }
+
+# CODEPIPELINE -------------------------------------------------------------------------
+variable "application_pipeline_name" {
+  description = "Name of the CodePipeline pipeline"
+  type        = string
+}
+
+variable "application_pipeline_execution_mode" {
+  description = "How the pipeline handles concurrent executions"
+  type        = string
+}
+
+variable "application_pipeline_artifact_bucket_name" {
+  description = "Name of the S3 bucket stages pass artifacts through"
+  type        = string
+}
+
+variable "application_pipeline_artifact_retention_days" {
+  description = "Days before pipeline artifacts are expired"
+  type        = number
+}
+
+variable "application_pipeline_full_repository_id" {
+  description = "Repository the Source stage clones, as <owner>/<repo>"
+  type        = string
+}
+
+variable "application_pipeline_branch_name" {
+  description = "Branch the Source stage watches"
+  type        = string
+}
+
+variable "application_pipeline_trigger_file_paths" {
+  description = "Glob patterns a changed file must match to start the pipeline"
+  type        = list(string)
+}

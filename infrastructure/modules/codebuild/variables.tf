@@ -16,6 +16,11 @@ variable "unittest_codebuild_codeconnection_arn" {
   }
 }
 
+variable "unittest_codebuild_artifact_bucket_name" {
+  description = "Name of the CodePipeline artifact bucket this project reads its source from when run as a pipeline stage"
+  type        = string
+}
+
 variable "unittest_codebuild_webhook_branch_pattern" {
   description = "Regex the pushed ref must match for the webhook to fire a build"
   type        = string

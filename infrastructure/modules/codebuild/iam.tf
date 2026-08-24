@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "unittest_base" {
     resources = [local.log_group_arn, "${local.log_group_arn}:*"]
   }
 
-  # Unused until this becomes a CodePipeline stage but part of console resource
+  # Read by the pipeline's Build stage: the source zip arrives through this bucket.
   statement {
     actions = [
       "s3:PutObject",
@@ -58,7 +58,10 @@ data "aws_iam_policy_document" "unittest_base" {
       "s3:GetBucketAcl",
       "s3:GetBucketLocation",
     ]
-    resources = ["arn:aws:s3:::codepipeline-${data.aws_region.current.region}-*"]
+    resources = [
+      "arn:aws:s3:::${var.unittest_codebuild_artifact_bucket_name}",
+      "arn:aws:s3:::${var.unittest_codebuild_artifact_bucket_name}/*",
+    ]
   }
 
   statement {

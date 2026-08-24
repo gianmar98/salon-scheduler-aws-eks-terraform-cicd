@@ -20,3 +20,12 @@ output "unittest_codebuild_project_arn" {
   description = "ARN of the unit-test CodeBuild project"
   value       = module.unittest_codebuild_project.unittest_codebuild_project_arn
 }
+output "application_pipeline_name" {
+  description = "Name of the CodePipeline pipeline"
+  value       = module.application_pipeline.application_pipeline_name
+}
+
+output "application_pipeline_artifact_bucket_name" {
+  description = "Artifact bucket the pipeline stages pass work through"
+  value       = module.application_pipeline.application_pipeline_artifact_bucket_name
+}

@@ -18,10 +18,11 @@ provided by the Amazon Cloud Institute, everything under `infrastructure/` is or
 |---|---|
 | **App** | Django 5, SQLite locally, booking funnel of service → hairdresser → date → time |
 | **Announcements** | banner text read from a DynamoDB table at request time |
-| **CI** | a CodeBuild project that runs pylint and the test suite on every push to `main` that touches `appointments-app/`, publishing test and coverage reports |
+| **CI** | a two-stage CodePipeline — pull from GitHub, then run pylint and the test suite in CodeBuild — triggered only by pushes to `main` that touch `appointments-app/` |
+| **Reports** | JUnit and Cobertura published to CodeBuild report groups on every run |
 | **State** | S3 remote backend with lockfile |
 
-Not built yet: EKS and CodePipeline. The repository name describes the intended
+Not built yet: EKS, and any deploy stage. The repository name describes the intended
 destination.
 
 ## Running the app locally
@@ -93,6 +94,7 @@ Each module's `README.md` is the source of truth for its inputs and its gotchas 
 there, not with the `.tf` files:
 
 - [`modules/codebuild`](infrastructure/modules/codebuild/README.md)
+- [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md)
 - [`modules/dynamodb`](infrastructure/modules/dynamodb/README.md)
 
 Most of the CodeBuild stack was built in the AWS console first and adopted into
