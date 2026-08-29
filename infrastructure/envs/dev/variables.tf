@@ -215,3 +215,18 @@ variable "appointments_db_skip_final_snapshot" {
   description = "Skip the final snapshot on destroy — true for dev, false anywhere data matters"
   type        = bool
 }
+
+variable "appointments_db_publicly_accessible" {
+  description = "Give the instance a public DNS name — the security group is what actually gates access"
+  type        = bool
+}
+
+variable "appointments_db_iam_auth_enabled" {
+  description = "Allow IAM token authentication for DB users created WITH AWSAuthenticationPlugin"
+  type        = bool
+}
+
+variable "appointments_db_port" {
+  description = "Port the engine listens on, and the port opened in the security group"
+  type        = number
+}

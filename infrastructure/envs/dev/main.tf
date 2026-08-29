@@ -13,6 +13,9 @@ terraform {
 
 data "aws_caller_identity" "currentUser" {}
 data "aws_region" "currentUser" {}
+data "aws_vpc" "default" {
+  default = true
+}
 
 locals {
   env_suffix = "-${var.project_environment}"
@@ -89,4 +92,8 @@ module "rds_db" {
   appointments_db_username             = var.appointments_db_username
   appointments_db_parameter_group_name = var.appointments_db_parameter_group_name
   appointments_db_skip_final_snapshot  = var.appointments_db_skip_final_snapshot
+  appointments_db_publicly_accessible  = var.appointments_db_publicly_accessible
+  appointments_db_iam_auth_enabled     = var.appointments_db_iam_auth_enabled
+  appointments_db_port                 = var.appointments_db_port
+  appointments_db_vpc_id               = data.aws_vpc.default.id
 }

@@ -29,3 +29,23 @@ output "application_pipeline_artifact_bucket_name" {
   description = "Artifact bucket the pipeline stages pass work through"
   value       = module.application_pipeline.application_pipeline_artifact_bucket_name
 }
+
+output "appointments_db_address" {
+  description = "Hostname of the DB instance — Django's DATABASES HOST"
+  value       = module.rds_db.appointments_db_address
+}
+
+output "appointments_db_port" {
+  description = "Port the DB instance listens on — Django's DATABASES PORT"
+  value       = module.rds_db.appointments_db_port
+}
+
+output "appointments_db_master_user_secret_arn" {
+  description = "ARN of the RDS-managed Secrets Manager secret holding the master password"
+  value       = module.rds_db.appointments_db_master_user_secret_arn
+}
+
+output "default_cidr_block" {
+  description = "CIDR of default VPC"
+  value       = data.aws_vpc.default.cidr_block
+}

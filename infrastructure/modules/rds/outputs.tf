@@ -3,20 +3,20 @@
 
 output "appointments_db_address" {
   description = "Hostname of the DB instance — Django's DATABASES HOST"
-  value       = aws_db_instance.default.address
+  value       = aws_db_instance.salon_rds_mysql.address
 }
 
 output "appointments_db_port" {
   description = "Port the DB instance listens on — Django's DATABASES PORT"
-  value       = aws_db_instance.default.port
+  value       = aws_db_instance.salon_rds_mysql.port
 }
 
 output "appointments_db_name" {
   description = "Name of the initial database — Django's DATABASES NAME"
-  value       = aws_db_instance.default.db_name
+  value       = aws_db_instance.salon_rds_mysql.db_name
 }
 
 output "appointments_db_master_user_secret_arn" {
   description = "ARN of the RDS-managed Secrets Manager secret holding the master password"
-  value       = aws_db_instance.default.master_user_secret[0].secret_arn
+  value       = aws_db_instance.salon_rds_mysql.master_user_secret[0].secret_arn
 }
