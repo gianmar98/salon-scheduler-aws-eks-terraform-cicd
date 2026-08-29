@@ -24,4 +24,9 @@ resource "aws_db_instance" "salon_rds_mysql" {
   # token instead of a password. Enabling it alone grants nobody anything — the DB
   # user and an rds-db:connect grant are separate, manual steps.
   iam_database_authentication_enabled = var.appointments_db_iam_auth_enabled
+
+  # Without this, RDS parks a modification in PendingModifiedValues until the
+  # maintenance window. Terraform still reports success, so the change looks applied
+  # when it is not.
+  apply_immediately = var.appointments_db_apply_immediately
 }

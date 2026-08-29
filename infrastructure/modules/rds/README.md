@@ -17,7 +17,7 @@ parameter group of its own. Everything not needed to hold data was left out.
 
 ## Inputs
 
-All 12 are supplied by the env layer; validation lives here, not there.
+All 14 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -31,6 +31,8 @@ All 12 are supplied by the env layer; validation lives here, not there.
 | `appointments_db_parameter_group_name` | string | `default.<engine><version>` unless a custom group exists |
 | `appointments_db_skip_final_snapshot` | bool | `true` for dev |
 | `appointments_db_publicly_accessible` | bool | public DNS name; the SG is the real gate |
+| `appointments_db_iam_auth_enabled` | bool | lets `AWSAuthenticationPlugin` users log in with a token; grants nothing on its own |
+| `appointments_db_apply_immediately` | bool | `true` in dev; `false` defers changes to the maintenance window |
 | `appointments_db_vpc_id` | string | VPC the security group is created in |
 | `appointments_db_port` | number | engine port, and the port opened in the SG |
 
@@ -97,6 +99,12 @@ running 24/7, or $0 if the account is still inside the 12-month RDS free tier.
   plan time, so applying from a different network silently repoints the rule, and a CI
   `apply` would hand access to the build agent and lock out the laptop. Home ISPs also
   rotate addresses — when connections start timing out, re-apply.
+- **A successful `apply` does not mean the change took effect.** With
+  `apply_immediately = false`, RDS accepts `ModifyDBInstance` and parks the change in
+  `PendingModifiedValues` until the maintenance window. Terraform reports success and the
+  console keeps showing the old value — this is what made `iam_auth` look like it had not
+  applied. `aws rds describe-db-instances --db-instance-identifier salon-db-dev` shows the
+  pending block.
 - **The SG's `description` is immutable.** It interpolates `appointments_db_identifier`,
   so changing the identifier replaces the security group while it is attached to a live
   instance.

@@ -94,6 +94,7 @@ module "rds_db" {
   appointments_db_skip_final_snapshot  = var.appointments_db_skip_final_snapshot
   appointments_db_publicly_accessible  = var.appointments_db_publicly_accessible
   appointments_db_iam_auth_enabled     = var.appointments_db_iam_auth_enabled
+  appointments_db_apply_immediately    = var.appointments_db_apply_immediately
   appointments_db_port                 = var.appointments_db_port
   appointments_db_vpc_id               = data.aws_vpc.default.id
 }

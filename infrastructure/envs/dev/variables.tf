@@ -226,6 +226,11 @@ variable "appointments_db_iam_auth_enabled" {
   type        = bool
 }
 
+variable "appointments_db_apply_immediately" {
+  description = "Apply modifications now instead of deferring them to the maintenance window"
+  type        = bool
+}
+
 variable "appointments_db_port" {
   description = "Port the engine listens on, and the port opened in the security group"
   type        = number

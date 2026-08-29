@@ -67,6 +67,11 @@ variable "appointments_db_iam_auth_enabled" {
   type        = bool
 }
 
+variable "appointments_db_apply_immediately" {
+  description = "Apply modifications now instead of deferring them to the maintenance window"
+  type        = bool
+}
+
 # NETWORK -----------------------------------------------------------------------------
 variable "appointments_db_vpc_id" {
   description = "VPC the security group is created in — supplied by the env layer"
