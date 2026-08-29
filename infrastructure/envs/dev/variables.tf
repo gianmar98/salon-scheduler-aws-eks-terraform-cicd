@@ -169,3 +169,49 @@ variable "application_pipeline_trigger_file_paths" {
   description = "Glob patterns a changed file must match to start the pipeline"
   type        = list(string)
 }
+
+# RDS ---------------------------------------------------------------------------------
+variable "appointments_db_identifier" {
+  description = "Base DB instance identifier — the env suffix is appended in main.tf"
+  type        = string
+}
+
+variable "appointments_db_allocated_storage" {
+  description = "Allocated storage in GiB"
+  type        = number
+}
+
+variable "appointments_db_name" {
+  description = "Name of the initial database created inside the instance"
+  type        = string
+}
+
+variable "appointments_db_engine" {
+  description = "Database engine"
+  type        = string
+}
+
+variable "appointments_db_engine_version" {
+  description = "Engine version — must match the family of appointments_db_parameter_group_name"
+  type        = string
+}
+
+variable "appointments_db_instance_class" {
+  description = "Instance class"
+  type        = string
+}
+
+variable "appointments_db_username" {
+  description = "Master username"
+  type        = string
+}
+
+variable "appointments_db_parameter_group_name" {
+  description = "DB parameter group — the default.<engine><version> group unless a custom one exists"
+  type        = string
+}
+
+variable "appointments_db_skip_final_snapshot" {
+  description = "Skip the final snapshot on destroy — true for dev, false anywhere data matters"
+  type        = bool
+}

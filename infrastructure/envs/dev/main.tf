@@ -78,7 +78,15 @@ module "application_pipeline" {
   application_pipeline_codebuild_project_arn  = module.unittest_codebuild_project.unittest_codebuild_project_arn
 }
 
-# moved {
-#   from = aws_codebuild_project.unittest
-#   to   = module.unittest_codebuild_project.aws_codebuild_project.unittest
-# }
+module "rds_db" {
+  source                               = "../../modules/rds"
+  appointments_db_identifier           = "${var.appointments_db_identifier}${local.env_suffix}"
+  appointments_db_allocated_storage    = var.appointments_db_allocated_storage
+  appointments_db_name                 = var.appointments_db_name
+  appointments_db_engine               = var.appointments_db_engine
+  appointments_db_engine_version       = var.appointments_db_engine_version
+  appointments_db_instance_class       = var.appointments_db_instance_class
+  appointments_db_username             = var.appointments_db_username
+  appointments_db_parameter_group_name = var.appointments_db_parameter_group_name
+  appointments_db_skip_final_snapshot  = var.appointments_db_skip_final_snapshot
+}
