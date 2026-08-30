@@ -235,3 +235,13 @@ variable "appointments_db_port" {
   description = "Port the engine listens on, and the port opened in the security group"
   type        = number
 }
+
+variable "appointments_db_iam_username" {
+  description = "DB user that logs in with an IAM token — must match the user in sql/create_app_user.sql"
+  type        = string
+}
+
+variable "appointments_db_iam_principal" {
+  description = "IAM user granted rds-db:connect for that DB user"
+  type        = string
+}

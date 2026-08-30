@@ -16,6 +16,11 @@ output "appointments_db_name" {
   value       = aws_db_instance.salon_rds_mysql.db_name
 }
 
+output "appointments_db_resource_id" {
+  description = "Immutable resource ID (db-XXXX) — rds-db:connect is authorized against this, not the identifier"
+  value       = aws_db_instance.salon_rds_mysql.resource_id
+}
+
 output "appointments_db_master_user_secret_arn" {
   description = "ARN of the RDS-managed Secrets Manager secret holding the master password"
   value       = aws_db_instance.salon_rds_mysql.master_user_secret[0].secret_arn

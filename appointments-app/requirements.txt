@@ -7,10 +7,13 @@ botocore-stubs==1.43.67
 coverage==7.5.4
 dill==0.4.1
 Django==5.0.14
+django-iam-dbauth==0.2.1
+dnspython==2.8.0
 isort==6.1.0
 jmespath==1.1.0
 lxml==6.1.2
 mccabe==0.7.0
+mysqlclient==2.2.8
 platformdirs==4.11.3
 pylint==3.3.9
 pylint-django==2.5.5

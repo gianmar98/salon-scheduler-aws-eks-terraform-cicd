@@ -84,6 +84,27 @@ DATABASES = {
     }
 }
 
+#(5.1.2)
+# Switch to RDS when the environment supplies a target. Unset locally and in CI, so
+# tests keep using SQLite.
+if ("DATABASE_HOST" in os.environ and
+        "DATABASE_USER" in os.environ and
+        "DATABASE_DB_NAME" in os.environ):
+    DATABASES = {
+        "default": {
+            "HOST": os.environ["DATABASE_HOST"],
+            "USER": os.environ["DATABASE_USER"],
+            "NAME": os.environ["DATABASE_DB_NAME"],
+            # No PASSWORD: this engine mints a short-lived IAM token per connection.
+            "ENGINE": "django_iam_dbauth.aws.mysql",
+            "OPTIONS": {
+                "sql_mode": "traditional",
+                "use_iam_auth": True,
+                "ssl_mode": "REQUIRED",
+            },
+        }
+    }
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
