@@ -129,6 +129,48 @@ They live only in this terminal. Close it, or open a second tab, and you are bac
 
 This is a stand-in for what Terraform will do on EKS, where the same three `DATABASE_*` variables are set in the pod spec and the container always has them. Deliberately not added to `.bashrc`, so the default stays SQLite and the test suite is never pointed at a real database by accident.
 
+## Build the Docker image
+
+> **Run from `appointments-app/`.** No venv needed — the container builds its own.
+
+```bash
+docker build -t appointments-app .
+```
+
+Runs every instruction in the `Dockerfile` and saves the result as an image. The trailing
+`.` is the build context — the directory Docker is allowed to `COPY` from — so this fails
+from anywhere else. First build takes minutes (pulls Python, compiles `mysqlclient`);
+later ones are seconds, since only layers below a changed line are rebuilt.
+
+`docker images` lists what was created. An image is a frozen filesystem, not a process —
+nothing runs until `docker run`.
+
+## Run the container against RDS
+
+> **Run from `appointments-app/`.** The `-chdir` path is relative to that directory.
+
+```bash
+docker run -it --rm -p 8088:8088 -v ~/.aws:/root/.aws:ro -e AWS_DEFAULT_REGION=us-east-1 -e LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 -e DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) -e DATABASE_USER=appointments_admin -e DATABASE_DB_NAME=salon appointments-app
+```
+
+One line on purpose, like the migrate command above. Paste it whole — if the terminal
+breaks it across lines, `DATABASE_HOST` ends up empty and the container fails with a
+local-socket error instead of a missing-host one.
+
+- `-it` — attaches the terminal, so Django's log shows and Ctrl-C stops the server.
+- `--rm` — removes the container on exit rather than leaving a stopped one behind.
+- `-p 8088:8088` — forwards the host port into the container's private network. Without it the browser cannot reach the app at all.
+- `-v ~/.aws:/root/.aws:ro` — the container inherits no AWS credentials on a laptop, and `django-iam-dbauth` needs them to sign the RDS token. Read-only. Add `-e AWS_PROFILE=<name>` if the credentials are not under `default`.
+- The five `-e` variables are the same ones the local `runserver` needs — the three `DATABASE_*` that `settings.py` checks, plus `AWS_DEFAULT_REGION` to sign the token and `LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1` to let the driver send it.
+
+Then open `http://localhost:8088`, book an appointment, and confirm it landed:
+`SELECT * FROM appointments_appointment;`. That round trip is the proof the container
+reached RDS — an empty or missing variable produces a working-looking app writing to a
+throwaway SQLite file inside the container.
+
+The container does not run migrations; `CMD` is `runserver`, so the schema must already
+exist. See "Apply migrations to the RDS database" above.
+
 ## Run the dev app server
 
 ```bash
