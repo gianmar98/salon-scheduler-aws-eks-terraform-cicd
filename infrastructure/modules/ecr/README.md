@@ -1,12 +1,14 @@
 # `ecr` module
 
 Holds the container image for the Django app. The repository is the Terraform-managed
-part; the image inside it is built and pushed by hand from `appointments-app/`.
+part; the image inside it is built and pushed by the pipeline's `BuildImage` stage, or
+by hand from `appointments-app/` when testing locally.
 
 Written directly in Terraform — one `aws_ecr_repository`, nothing else. No lifecycle
 policy: each `:latest` push orphans the previous image as untagged, but at roughly
-$0.10/GB-month on a ~500 MB image that is pennies. Add `aws_ecr_lifecycle_policy` if
-pushes become frequent.
+$0.10/GB-month on a ~500 MB image that is pennies. Now that the pipeline pushes on every
+qualifying commit, untagged images accumulate faster than they did by hand — add
+`aws_ecr_lifecycle_policy` if that starts to matter.
 
 ## What it creates
 
@@ -34,12 +36,21 @@ the only alternative is a KMS key with its own charges.
 |---|---|
 | `appointments_ecr_repository_url` | registry URL to tag and push against |
 | `appointments_ecr_repository_name` | repository name — what the ECR CLI commands take |
+| `appointments_ecr_repository_arn` | repository ARN — what an IAM policy scopes push permissions to |
 
-Both exist so the account ID stays out of committed files and out of the push commands.
+The first two exist so the account ID stays out of committed files and out of the push
+commands. All three are consumed by `codebuild_buildimage`: the URL becomes `$ECR_REPO_URL`
+inside the build, and the ARN scopes its push permissions to this one repository.
 
 ## Pushing
 
-Login, tag, push, and verify are in `appointments-app/COMMANDS.md`.
+**Normally the pipeline does this.** A push to `main` touching `appointments-app/` runs
+the unit tests, then the `BuildImage` stage builds and pushes three tags — `latest`,
+`staging-test-image`, and the commit SHA. See `modules/codebuild_buildimage/README.md`.
+
+The manual login/tag/push/verify commands below are still in
+`appointments-app/COMMANDS.md`, and remain the fastest way to test a Dockerfile change
+without waiting on a pipeline run.
 
 ## Building the image that lands here
 

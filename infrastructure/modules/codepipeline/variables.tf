@@ -58,6 +58,7 @@ variable "application_pipeline_trigger_file_paths" {
   type        = list(string)
 }
 
+#Unit test
 variable "application_pipeline_codebuild_project_name" {
   description = "Name of the CodeBuild project the Build stage invokes"
   type        = string
@@ -69,5 +70,20 @@ variable "application_pipeline_codebuild_project_arn" {
   validation {
     condition     = can(regex("^arn:aws:codebuild:", var.application_pipeline_codebuild_project_arn))
     error_message = "application_pipeline_codebuild_project_arn must be a CodeBuild project ARN."
+  }
+}
+
+#Build image
+variable "application_pipeline_codebuild_buildimage_project_name" {
+  description = "Name of the CodeBuild project the Build BuildImage stage invokes"
+  type        = string
+}
+
+variable "application_pipeline_codebuild_buildimage_project_arn" {
+  description = "ARN of that same CodeBuild BuildImage project — scopes the role's StartBuild grant"
+  type        = string
+  validation {
+    condition     = can(regex("^arn:aws:codebuild:", var.application_pipeline_codebuild_buildimage_project_arn))
+    error_message = "application_pipeline_codebuild_buildimage_project_arn must be a CodeBuild project ARN."
   }
 }

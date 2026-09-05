@@ -175,6 +175,11 @@ exist. See "Apply migrations to the RDS database" above.
 
 > **Run from `appointments-app/`.** The `-chdir` path is relative to that directory.
 
+**The pipeline normally does this.** A push to `main` touching `appointments-app/` runs
+the tests, then the `BuildImage` stage builds and pushes `latest`, `staging-test-image`,
+and the commit SHA. The commands below are for testing a Dockerfile change without
+waiting on a pipeline run — they push the same `latest` tag, so whichever ran last wins.
+
 Every command reads the registry from `terraform output`, so the account ID never appears
 in anything committed.
 

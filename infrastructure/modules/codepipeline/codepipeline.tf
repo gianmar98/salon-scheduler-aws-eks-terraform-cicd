@@ -78,4 +78,26 @@ resource "aws_codepipeline" "application_pipeline" {
       }
     }
   }
+
+  # Stage names must be unique within a pipeline, so this cannot also be called "Build".
+  stage {
+    name = "BuildImage"
+
+    # Artifacts are zips passed between stages through the artifact bucket. This stage
+    # hands nothing forward — the image goes to ECR, not to the bucket — so it takes
+    # source_output in and declares no output. Declaring one CodeBuild never produces
+    # fails the action.
+    action {
+      name            = "BuildImage"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      version         = "1"
+      input_artifacts = ["source_output"]
+
+      configuration = {
+        ProjectName = var.application_pipeline_codebuild_buildimage_project_name
+      }
+    }
+  }
 }

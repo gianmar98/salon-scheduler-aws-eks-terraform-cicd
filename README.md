@@ -18,12 +18,14 @@ provided by the Amazon Cloud Institute, everything under `infrastructure/` is or
 |---|---|
 | **App** | Django 5, SQLite locally, booking funnel of service → hairdresser → date → time |
 | **Announcements** | banner text read from a DynamoDB table at request time |
-| **CI** | a two-stage CodePipeline — pull from GitHub, then run pylint and the test suite in CodeBuild — triggered only by pushes to `main` that touch `appointments-app/` |
+| **Database** | RDS MySQL, reached with IAM token auth — no password in Terraform or in the app |
+| **CI** | a three-stage CodePipeline — pull from GitHub, run pylint and the test suite, then build the container image — triggered only by pushes to `main` that touch `appointments-app/` |
+| **Images** | built by CodeBuild and pushed to ECR as `latest`, `staging-test-image`, and the commit SHA |
 | **Reports** | JUnit and Cobertura published to CodeBuild report groups on every run |
 | **State** | S3 remote backend with lockfile |
 
-Not built yet: EKS, and any deploy stage. The repository name describes the intended
-destination.
+Not built yet: EKS, and any deploy stage. The image reaches ECR and stops there. The
+repository name describes the intended destination.
 
 ## Running the app locally
 
@@ -93,13 +95,19 @@ default.
 Each module's `README.md` is the source of truth for its inputs and its gotchas — start
 there, not with the `.tf` files:
 
-- [`modules/codebuild_unittest`](infrastructure/modules/codebuild_unittest/README.md)
-- [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md)
-- [`modules/dynamodb`](infrastructure/modules/dynamodb/README.md)
+- [`modules/codebuild_unittest`](infrastructure/modules/codebuild_unittest/README.md) — pylint + tests
+- [`modules/codebuild_buildimage`](infrastructure/modules/codebuild_buildimage/README.md) — Docker build + ECR push
+- [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md) — the three stages
+- [`modules/dynamodb`](infrastructure/modules/dynamodb/README.md) — announcements table
+- [`modules/ecr`](infrastructure/modules/ecr/README.md) — image repository
+- [`modules/rds`](infrastructure/modules/rds/README.md) — MySQL instance and IAM auth
 
-Most of the CodeBuild stack was built in the AWS console first and adopted into
+The unit-test CodeBuild stack was built in the AWS console first and adopted into
 Terraform with `import` blocks — twelve objects, nothing recreated. That process, and
-the traps in it, is written up under Provenance in the codebuild module README.
+the traps in it, is written up under Provenance in
+[`modules/codebuild_unittest`](infrastructure/modules/codebuild_unittest/README.md).
+Everything since — the pipeline, RDS, ECR, and the image builder — was written directly
+in Terraform.
 
 ## License
 

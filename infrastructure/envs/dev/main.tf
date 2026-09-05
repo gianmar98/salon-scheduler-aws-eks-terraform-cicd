@@ -76,9 +76,13 @@ module "application_pipeline" {
   application_pipeline_trigger_file_paths      = var.application_pipeline_trigger_file_paths
 
   #External
-  application_pipeline_codeconnection_arn     = aws_codeconnections_connection.github.arn
+  application_pipeline_codeconnection_arn = aws_codeconnections_connection.github.arn
+  #Unit test
   application_pipeline_codebuild_project_name = module.unittest_codebuild_project.unittest_codebuild_project_name
   application_pipeline_codebuild_project_arn  = module.unittest_codebuild_project.unittest_codebuild_project_arn
+  #Build image
+  application_pipeline_codebuild_buildimage_project_name = module.buildimage_codebuild_project.buildimage_codebuild_project_name
+  application_pipeline_codebuild_buildimage_project_arn  = module.buildimage_codebuild_project.buildimage_codebuild_project_arn
 }
 
 module "rds_db" {

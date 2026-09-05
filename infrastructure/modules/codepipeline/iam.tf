@@ -51,7 +51,7 @@ data "aws_iam_policy_document" "application_pipeline" {
   # Lets Build stage kick off your CodeBuild project and poll it for result. Scoped to projects ARN
   statement {
     actions   = ["codebuild:StartBuild", "codebuild:BatchGetBuilds"]
-    resources = [var.application_pipeline_codebuild_project_arn]
+    resources = [var.application_pipeline_codebuild_project_arn, var.application_pipeline_codebuild_buildimage_project_arn]
   }
 }
 

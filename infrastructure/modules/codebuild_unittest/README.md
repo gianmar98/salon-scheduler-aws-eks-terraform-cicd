@@ -1,7 +1,11 @@
-# `codebuild` module
+# `codebuild_unittest` module
 
 CodeBuild project that lints and unit-tests the Django app on every push to `main`
 that touches `appointments-app/`.
+
+Its sibling, [`codebuild_buildimage`](../codebuild_buildimage/README.md), builds the
+container image in the pipeline's next stage. This module was adopted from the console
+with `import` blocks; that one was written directly in Terraform.
 
 ## What it runs
 

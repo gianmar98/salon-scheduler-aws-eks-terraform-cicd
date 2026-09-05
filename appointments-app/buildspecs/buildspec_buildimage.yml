@@ -1,14 +1,29 @@
-# Copyright (c) 2026 Giancarlo Martinez
-# SPDX-License-Identifier: Apache-2.0
+# Provided by the Amazon Cloud Institute (ACI) as Capstone 2 Lab 06 material.
+# The phase structure, the commands, and the "# Insert a command to..." guide comments
+# are ACI's. See NOTICE.
 #
-# Builds the Docker image and pushes it to the ECR repository created by
-# infrastructure/modules/ecr. Nothing references this file yet — no CodeBuild project
-# points at it — so it cannot affect the pipeline until one does.
+# Author's changes to the ACI original:
+#   - The ECR registry is read from $ECR_REPO_URL instead of being assembled from a
+#     hardcoded repository name. The lab pushes to "containers-image-repository"; this
+#     repo's name carries a Terraform-generated environment suffix, so writing it here
+#     would pin the file to one environment. modules/codebuild_buildimage injects the
+#     value from the ecr module's output.
+#   - Dropped the two AWS_ACCOUNT_ID lines (`aws sts get-caller-identity` and its echo).
+#     $ECR_REPO_URL already contains the account, so nothing needs to derive it.
+#   - `docker login` gets ${ECR_REPO_URL%%/*} — it takes a registry hostname, not a
+#     repository path.
+#   - Added `cd $CODEBUILD_SRC_DIR/appointments-app`. The lab has no such line because
+#     there the repository root IS the Django app; here it is a subdirectory, and the
+#     Dockerfile is not in the default working directory.
+#   - Second `echo Build started on` -> `Build completed on`. The lab prints "started"
+#     twice, leaving no completion marker in the logs.
+#   - post_build re-indented from 5 spaces to 6, to match the rest of the file.
+#   - The dynamic tag comment said "CodeCommit commit ID"; the source here is GitHub.
+#     CODEBUILD_RESOLVED_SOURCE_VERSION resolves to the commit SHA either way.
 #
 # The project that runs this MUST supply:
 #   - ECR_REPO_URL as an environment_variable, set from the ecr module's
-#     appointments_ecr_repository_url output. Hardcoding the repository here would pin
-#     the file to one environment; every other name in this repo is env-suffixed.
+#     appointments_ecr_repository_url output.
 #   - privileged_mode = true, or there is no Docker daemon to build with.
 #   - ECR permissions on its service role: ecr:GetAuthorizationToken on "*", plus
 #     BatchCheckLayerAvailability, InitiateLayerUpload, UploadLayerPart,
