@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Giancarlo Martinez
+# SPDX-License-Identifier: Apache-2.0
+#
+# Builds the Docker image and pushes it to the ECR repository created by
+# infrastructure/modules/ecr. Nothing references this file yet — no CodeBuild project
+# points at it — so it cannot affect the pipeline until one does.
+#
+# The project that runs this MUST supply:
+#   - ECR_REPO_URL as an environment_variable, set from the ecr module's
+#     appointments_ecr_repository_url output. Hardcoding the repository here would pin
+#     the file to one environment; every other name in this repo is env-suffixed.
+#   - privileged_mode = true, or there is no Docker daemon to build with.
+#   - ECR permissions on its service role: ecr:GetAuthorizationToken on "*", plus
+#     BatchCheckLayerAvailability, InitiateLayerUpload, UploadLayerPart,
+#     CompleteLayerUpload and PutImage on the repository ARN.
+
+version: 0.2
+
+phases:
+  pre_build: # This phase will be used to retrieve required environment variables and login to Amazon ECR.
+    commands:
+      - echo "Running in region $AWS_REGION" # AWS_REGION is set by CodeBuild itself.
+      - echo "Pushing to $ECR_REPO_URL" # Injected by the project. Prints empty if unset — the docker login below is what then fails.
+      - echo Logging in to Amazon ECR...
+      # ${ECR_REPO_URL%%/*} trims the /<repository> path: docker login takes a registry
+      # hostname, not a repository. Same trim as the `cut -d/ -f1` in COMMANDS.md.
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${ECR_REPO_URL%%/*}
+
+  build: # This phase will be used to build the image and add multiple tags.
+    commands:
+      - echo Build started on `date` # This command adds the date to the logs.
+      - echo Building the Docker image...
+      - cd $CODEBUILD_SRC_DIR/appointments-app
+      - docker build -t appointments-app-container . # Insert a command to build the image using docker and name it "appointments-app-container".
+      - docker tag appointments-app-container:latest $ECR_REPO_URL:latest # Insert a commands to add "latest" tag to the image.
+      - docker tag appointments-app-container:latest $ECR_REPO_URL:staging-test-image # Insert a command to add "staging-test-image" tag to the image.
+      - docker tag appointments-app-container:latest $ECR_REPO_URL:${CODEBUILD_RESOLVED_SOURCE_VERSION} # Dynamic tag: the full commit SHA. The lab says CodeCommit; this repo's source is GitHub, and the variable resolves the same way.
+      - echo Build completed on `date` # This command adds the date to the logs.
+
+  post_build: # This phase will be used to push the image to Amazon ECR.
+    commands:
+      - echo Pushing the Docker image to Amazon ECR...
+      - docker push --all-tags $ECR_REPO_URL # Insert a command to push the image to the Amazon ECR repository including all tags.

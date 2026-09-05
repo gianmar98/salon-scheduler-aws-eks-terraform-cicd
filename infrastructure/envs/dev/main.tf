@@ -49,7 +49,7 @@ module "announcements_dynamo_db_table" {
 }
 
 module "unittest_codebuild_project" {
-  source                                  = "../../modules/codebuild"
+  source                                  = "../../modules/codebuild_unittest"
   unittest_codebuild_project_name         = "${var.unittest_codebuild_project_name}${local.env_suffix}"
   unittest_codebuild_codeconnection_arn   = aws_codeconnections_connection.github.arn
   unittest_codebuild_source_location      = var.unittest_codebuild_source_location

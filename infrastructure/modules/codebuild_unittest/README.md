@@ -6,7 +6,7 @@ that touches `appointments-app/`.
 ## What it runs
 
 The build recipe is not in this module — it lives in the repository at
-`appointments-app/buildspec_unittest.yml`, and CodeBuild reads it from the cloned
+`appointments-app/buildspecs/buildspec_unittest.yml`, and CodeBuild reads it from the cloned
 source at build time. This module only stores the path.
 
 That split is deliberate: build steps change far more often than infrastructure, so

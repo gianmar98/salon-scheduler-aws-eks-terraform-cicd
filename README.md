@@ -93,7 +93,7 @@ default.
 Each module's `README.md` is the source of truth for its inputs and its gotchas — start
 there, not with the `.tf` files:
 
-- [`modules/codebuild`](infrastructure/modules/codebuild/README.md)
+- [`modules/codebuild_unittest`](infrastructure/modules/codebuild_unittest/README.md)
 - [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md)
 - [`modules/dynamodb`](infrastructure/modules/dynamodb/README.md)
 

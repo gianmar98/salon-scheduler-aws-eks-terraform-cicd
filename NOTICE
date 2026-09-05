@@ -11,9 +11,13 @@ test_announcements additions in appointments/tests.py. Those follow ACI lab
 instructions and are ACI's content. The author's own edits in that directory are
 incidental adaptations for local tooling and CI: reading the table name from the
 ANNOUNCEMENTS_TABLE environment variable, the PYTHONPATH prefix in
-local_build.sh, and the corresponding fixes in buildspec_unittest.yml (the
-PYTHONPATH prefix, the $CODEBUILD_SRC_DIR phase paths, the report
+local_build.sh, and the corresponding fixes in buildspecs/buildspec_unittest.yml
+(the PYTHONPATH prefix, the $CODEBUILD_SRC_DIR phase paths, the report
 base-directory entries, and the Python 3.12 runtime).
+
+One file under appointments-app/ is the author's own work rather than ACI's:
+buildspecs/buildspec_buildimage.yml, which will build and push the container image
+to ECR. It carries the author's copyright header.
 
 The same is true of the Lab 5 changes inside appointments-app/ — the RDS DATABASES
 block in hairdresser_django/settings.py and the Dockerfile. Both follow ACI lab
