@@ -10,3 +10,8 @@ output "appointments_ecr_repository_name" {
   description = "Repository name — what the ECR CLI commands take"
   value       = aws_ecr_repository.appointments_app.name
 }
+
+output "appointments_ecr_repository_arn" {
+  description = "Repository ARN — what an IAM policy scopes push permissions to"
+  value       = aws_ecr_repository.appointments_app.arn
+}

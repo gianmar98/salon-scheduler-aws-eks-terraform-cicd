@@ -106,3 +106,22 @@ module "ecr" {
   appointments_ecr_scan_on_push         = var.appointments_ecr_scan_on_push
   appointments_ecr_force_delete         = var.appointments_ecr_force_delete
 }
+
+
+module "buildimage_codebuild_project" {
+  source                                    = "../../modules/codebuild_buildimage"
+  buildimage_codebuild_project_name         = "${var.buildimage_codebuild_project_name}${local.env_suffix}"
+  buildimage_codebuild_codeconnection_arn   = aws_codeconnections_connection.github.arn
+  buildimage_codebuild_source_location      = var.buildimage_codebuild_source_location
+  buildimage_codebuild_source_version       = var.buildimage_codebuild_source_version
+  buildimage_codebuild_buildspec            = var.buildimage_codebuild_buildspec
+  buildimage_codebuild_image                = var.buildimage_codebuild_image
+  buildimage_codebuild_compute_type         = var.buildimage_codebuild_compute_type
+  buildimage_codebuild_build_timeout        = var.buildimage_codebuild_build_timeout
+  buildimage_codebuild_log_retention_days   = var.buildimage_codebuild_log_retention_days
+  buildimage_codebuild_artifact_bucket_name = "${var.application_pipeline_artifact_bucket_name}${local.env_suffix}"
+
+  #External
+  buildimage_codebuild_ecr_repository_url = module.ecr.appointments_ecr_repository_url
+  buildimage_codebuild_ecr_repository_arn = module.ecr.appointments_ecr_repository_arn
+}

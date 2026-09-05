@@ -78,7 +78,7 @@ variable "announcements_table_target_scaling_val" {
   type        = number
 }
 
-# CODEBUILD --------------------------------------------------------------------------
+# CODEBUILD UNITTEST--------------------------------------------------------------------------
 variable "unittest_codebuild_project_name" {
   description = "Name of the CodeBuild project that lints and unit-tests the Django app"
   type        = string
@@ -133,6 +133,48 @@ variable "unittest_codebuild_build_timeout" {
   description = "Minutes before CodeBuild aborts a running build"
   type        = number
 }
+
+# CODEBUILD BUILDIMAGE--------------------------------------------------------------------------
+variable "buildimage_codebuild_project_name" {
+  description = "Name of the CodeBuild project that lints and unit-tests the Django app"
+  type        = string
+}
+
+variable "buildimage_codebuild_log_retention_days" {
+  description = "Days CloudWatch keeps the build logs"
+  type        = number
+}
+
+variable "buildimage_codebuild_source_location" {
+  description = "HTTPS URL of the GitHub repository CodeBuild clones"
+  type        = string
+}
+
+variable "buildimage_codebuild_source_version" {
+  description = "Branch, tag, or commit ID CodeBuild builds from"
+  type        = string
+}
+
+variable "buildimage_codebuild_buildspec" {
+  description = "Path to the buildspec file, relative to the repository root"
+  type        = string
+}
+
+variable "buildimage_codebuild_image" {
+  description = "Managed CodeBuild image the build container runs"
+  type        = string
+}
+
+variable "buildimage_codebuild_compute_type" {
+  description = "Build container size"
+  type        = string
+}
+
+variable "buildimage_codebuild_build_timeout" {
+  description = "Minutes before CodeBuild aborts a running build"
+  type        = number
+}
+
 
 # CODEPIPELINE -------------------------------------------------------------------------
 variable "application_pipeline_name" {
