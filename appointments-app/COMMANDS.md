@@ -171,6 +171,49 @@ throwaway SQLite file inside the container.
 The container does not run migrations; `CMD` is `runserver`, so the schema must already
 exist. See "Apply migrations to the RDS database" above.
 
+## Push the image to ECR
+
+> **Run from `appointments-app/`.** The `-chdir` path is relative to that directory.
+
+Every command reads the registry from `terraform output`, so the account ID never appears
+in anything committed.
+
+**1. Authenticate Docker to the registry.**
+
+```bash
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url | cut -d/ -f1)
+```
+
+ECR has no permanent Docker password. `get-login-password` mints a 12-hour token and the
+pipe hands it straight to `docker login` on stdin, so it never lands in shell history.
+The `cut` trims the `/appointments-app-dev` path off the end — `docker login` takes a
+registry hostname, not a repository path.
+
+**2. Tag the local image with the registry name.**
+
+```bash
+docker tag appointments-app:latest $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url):latest
+```
+
+Docker decides where to push from the image's *name*, not from a flag. `appointments-app`
+has no registry in it, so it would go to Docker Hub. This adds a second name pointing at
+the same image — no copy is made.
+
+**3. Push.**
+
+```bash
+docker push $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url):latest
+```
+
+**4. Verify it arrived.**
+
+```bash
+aws ecr describe-images --repository-name $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_name) --region us-east-1
+```
+
+Because the repository is `MUTABLE`, pushing `:latest` again repoints the tag and leaves
+the previous image untagged rather than failing.
+
 ## Run the dev app server
 
 ```bash

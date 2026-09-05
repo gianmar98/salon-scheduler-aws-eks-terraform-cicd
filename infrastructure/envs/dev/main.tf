@@ -98,3 +98,11 @@ module "rds_db" {
   appointments_db_port                 = var.appointments_db_port
   appointments_db_vpc_id               = data.aws_vpc.default.id
 }
+
+module "ecr" {
+  source                                = "../../modules/ecr"
+  appointments_ecr_repository_name      = "${var.appointments_ecr_repository_name}${local.env_suffix}"
+  appointments_ecr_image_tag_mutability = var.appointments_ecr_image_tag_mutability
+  appointments_ecr_scan_on_push         = var.appointments_ecr_scan_on_push
+  appointments_ecr_force_delete         = var.appointments_ecr_force_delete
+}

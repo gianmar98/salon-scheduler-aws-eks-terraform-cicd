@@ -15,6 +15,14 @@ local_build.sh, and the corresponding fixes in buildspec_unittest.yml (the
 PYTHONPATH prefix, the $CODEBUILD_SRC_DIR phase paths, the report
 base-directory entries, and the Python 3.12 runtime).
 
+The same is true of the Lab 5 changes inside appointments-app/ — the RDS DATABASES
+block in hairdresser_django/settings.py and the Dockerfile. Both follow ACI lab
+instructions and are ACI's content. The author's edits there are incidental: in
+settings.py, guarding the RDS block on the DATABASE_* environment variables so the
+test suite keeps using SQLite; in the Dockerfile, the python:3.12-slim base image in
+place of 3.11-slim and the apt-get package-list cleanup. Some of the Dockerfile's
+explanatory comments are the author's, added alongside ACI's.
+
 Everything in infrastructure/ is the original work of this repository's author:
 the Terraform module and environment layout, the DynamoDB table configuration,
 the CodeBuild project module with its IAM service role and policies, CloudWatch log

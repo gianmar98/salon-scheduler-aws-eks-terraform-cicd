@@ -3,6 +3,44 @@
 Holds the container image for the Django app. The repository is the Terraform-managed
 part; the image inside it is built and pushed by hand from `appointments-app/`.
 
+Written directly in Terraform — one `aws_ecr_repository`, nothing else. No lifecycle
+policy: each `:latest` push orphans the previous image as untagged, but at roughly
+$0.10/GB-month on a ~500 MB image that is pennies. Add `aws_ecr_lifecycle_policy` if
+pushes become frequent.
+
+## What it creates
+
+| Resource | Purpose |
+|---|---|
+| `aws_ecr_repository.appointments_app` | the repository the image is pushed to |
+
+## Inputs
+
+All 4 are supplied by the env layer; validation lives here, not there.
+
+| Name | Type | Note |
+|---|---|---|
+| `appointments_ecr_repository_name` | string | env-suffixed by the caller |
+| `appointments_ecr_image_tag_mutability` | string | `MUTABLE` \| `IMMUTABLE` |
+| `appointments_ecr_scan_on_push` | bool | basic CVE scanning, free |
+| `appointments_ecr_force_delete` | bool | `true` for dev, or destroy fails on a non-empty repo |
+
+Encryption is not an input: ECR encrypts at rest with AES256 by default at no cost, and
+the only alternative is a KMS key with its own charges.
+
+## Outputs
+
+| Name | Value |
+|---|---|
+| `appointments_ecr_repository_url` | registry URL to tag and push against |
+| `appointments_ecr_repository_name` | repository name — what the ECR CLI commands take |
+
+Both exist so the account ID stays out of committed files and out of the push commands.
+
+## Pushing
+
+Login, tag, push, and verify are in `appointments-app/COMMANDS.md`.
+
 ## Building the image that lands here
 
 Everything below runs from `appointments-app/`, the directory holding the `Dockerfile`.

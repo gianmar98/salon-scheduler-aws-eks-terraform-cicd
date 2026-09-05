@@ -40,12 +40,22 @@ output "appointments_db_port" {
   value       = module.rds_db.appointments_db_port
 }
 
+output "appointments_ecr_repository_url" {
+  description = "Registry URL to tag and push the container image against"
+  value       = module.ecr.appointments_ecr_repository_url
+}
+
+output "appointments_ecr_repository_name" {
+  description = "Repository name — what the ECR CLI commands take"
+  value       = module.ecr.appointments_ecr_repository_name
+}
+
 output "appointments_db_master_user_secret_arn" {
   description = "ARN of the RDS-managed Secrets Manager secret holding the master password"
   value       = module.rds_db.appointments_db_master_user_secret_arn
 }
 
-output "default_cidr_block" {
-  description = "CIDR of default VPC"
-  value       = data.aws_vpc.default.cidr_block
-}
+# output "default_cidr_block" {
+#   description = "CIDR of default VPC"
+#   value       = data.aws_vpc.default.cidr_block
+# }

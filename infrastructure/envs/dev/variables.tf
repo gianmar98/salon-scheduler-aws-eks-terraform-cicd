@@ -245,3 +245,24 @@ variable "appointments_db_iam_principal" {
   description = "IAM user granted rds-db:connect for that DB user"
   type        = string
 }
+
+# ECR ----------------------------------------------------------------------------------
+variable "appointments_ecr_repository_name" {
+  description = "Base repository name — the env suffix is appended in main.tf"
+  type        = string
+}
+
+variable "appointments_ecr_image_tag_mutability" {
+  description = "MUTABLE lets a tag be repointed to a new image; IMMUTABLE freezes it once used"
+  type        = string
+}
+
+variable "appointments_ecr_scan_on_push" {
+  description = "Run a CVE scan of the image's OS packages on every push"
+  type        = bool
+}
+
+variable "appointments_ecr_force_delete" {
+  description = "Let destroy remove the repository while it still holds images"
+  type        = bool
+}

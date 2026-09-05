@@ -3,8 +3,9 @@
 Single RDS instance intended to replace the Django app's `db.sqlite3` for development.
 Written directly in Terraform — **not** console-first-then-import like `codebuild`.
 
-Deliberately minimal: one `aws_db_instance`, no subnet group, no security group, no
-parameter group of its own. Everything not needed to hold data was left out.
+Deliberately minimal: one `aws_db_instance` plus the security group that gates it. No
+subnet group and no parameter group of its own — everything not needed to hold data was
+left out.
 
 ## What it creates
 
@@ -46,6 +47,7 @@ input**: the ingress rule derives it from `data.http.myip`.
 | `appointments_db_address` | hostname — Django's `DATABASES` `HOST` |
 | `appointments_db_port` | port — `PORT` |
 | `appointments_db_name` | initial database — `NAME` |
+| `appointments_db_resource_id` | immutable `db-XXXX` ID — what `rds-db:connect` is authorized against, not the identifier |
 | `appointments_db_master_user_secret_arn` | Secrets Manager secret holding the master password |
 
 ## The password is never in Terraform
@@ -113,8 +115,9 @@ running 24/7, or $0 if the account is still inside the 12-month RDS free tier.
   difference between "persistent" and one bad migration from total loss.
 - **`storage_encrypted` is unset, so it is `false`.** Enabling it is free but requires a
   snapshot-and-restore once the instance exists — cheap to fix now, painful later.
-- **`versions.tf` declares an unused `awscc` provider.** Pre-existing; nothing here uses it.
-- **The resource is named `default`**, not a descriptive noun, unlike the rest of the repo.
+- **Enabling IAM auth grants nobody anything.** `iam_database_authentication_enabled` only
+  makes token login *possible*. A DB user created `WITH AWSAuthenticationPlugin` and an
+  `rds-db:connect` policy are separate steps — see below.
 
 ## Connecting
 
@@ -128,9 +131,43 @@ mysql -h "$(terraform output -raw appointments_db_address)" -u salonadmin salon
 ```
 
 `db_subnet_group_name` is not set — the instance uses the default VPC's default subnet
-group (`default-vpc-06e1e9ba608319136`).
+group.
 
-The Django side — `mysqlclient`, env-driven `DATABASES` with a SQLite fallback so CI
-keeps using SQLite — is not started. Note that making `settings.py` env-driven puts
-original work under `appointments-app/`, which requires a `NOTICE` update in the same
-change.
+### Checking what's in there
+
+Once at the `mysql>` prompt:
+
+```sql
+SHOW TABLES;
+SELECT * FROM appointments_hairdresser;
+SELECT * FROM appointments_appointment;
+```
+
+Django names tables `<app>_<model>`, so the model is `Appointment` and the table is
+`appointments_appointment` — singular. `SHOW TABLES` empty means `migrate` never ran
+against RDS; `appointments_hairdresser` empty means it ran but `0002_populate` didn't.
+
+### The app connects as a second, passwordless user
+
+`salonadmin` above is the master account and is only used for administration. Django logs
+in as `appointments_admin`, which has no password at all — it is created
+`IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'` and authenticates with a 15-minute IAM
+token minted per connection.
+
+Two pieces make that work, and only one of them is in this module:
+
+- `envs/dev/rds_iam_auth.tf` — the `rds-db:connect` policy, scoped to
+  `appointments_db_resource_id` and the one username, attached to the IAM principal that
+  runs the app. It lives in the env layer because it names an account-specific principal.
+- `infrastructure/sql/create_app_user.sql` — the `CREATE USER` and `GRANT`. **Not
+  Terraform.** Managing in-database objects needs the `petoju/mysql` provider, which would
+  require Terraform to reach the instance on 3306 and to read the master password at apply
+  time — putting it in state, and forcing `apply` to run inside the VPC once the DB goes
+  private. The script is checked in and idempotent instead, so a rebuild is
+  `apply` → run the file → `migrate`.
+
+The Django side is done: `mysqlclient` and `django-iam-dbauth` in `requirements.txt`, and
+a `DATABASES` block in `settings.py` that switches to RDS only when the `DATABASE_*`
+variables are set, so the test suite and CI stay on SQLite. See
+`appointments-app/COMMANDS.md` for the exact commands, including the mandatory
+`LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1`.
