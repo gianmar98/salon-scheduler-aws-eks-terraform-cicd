@@ -68,3 +68,6 @@ environment.zip
 
 # Local MCP server config (machine-specific port)
 .mcp.json
+
+# Local reference material — diagrams, screenshots, scratch notes
+docs/
