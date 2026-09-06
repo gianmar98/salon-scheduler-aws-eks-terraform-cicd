@@ -313,3 +313,9 @@ variable "appointments_ecr_untagged_expiry_days" {
   description = "Days an untagged image is kept before the lifecycle policy expires it"
   type        = number
 }
+
+# EKS ----------------------------------------------------------------------------------
+variable "eks_enabled" {
+  description = "Lever to be able to destroy EKS specific infrastructure or not (True = keep ON / False = destroy on apply)"
+  type        = bool
+}

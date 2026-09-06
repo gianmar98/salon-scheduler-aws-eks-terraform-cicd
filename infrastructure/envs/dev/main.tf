@@ -130,3 +130,8 @@ module "buildimage_codebuild_project" {
   buildimage_codebuild_ecr_repository_url = module.ecr.appointments_ecr_repository_url
   buildimage_codebuild_ecr_repository_arn = module.ecr.appointments_ecr_repository_arn
 }
+
+module "eks" {
+  count  = var.eks_enabled ? 1 : 0
+  source = "../../modules/eks"
+}
