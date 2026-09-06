@@ -59,3 +59,8 @@ output "appointments_db_master_user_secret_arn" {
 #   description = "CIDR of default VPC"
 #   value       = data.aws_vpc.default.cidr_block
 # }
+
+output "aws_subnets" {
+  description = "Subnets of us-east-1a,b,c from default vpc of current region"
+  value = data.aws_subnets.eks_subnets
+}

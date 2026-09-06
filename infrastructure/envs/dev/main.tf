@@ -16,6 +16,17 @@ data "aws_region" "currentUser" {}
 data "aws_vpc" "default" {
   default = true
 }
+#default VPC has 1 subnet per AZ. limitation tied to region
+data "aws_subnets" "eks_subnets" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+  filter {
+    name   = "availability-zone"
+    values = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  }
+}
 
 locals {
   env_suffix = "-${var.project_environment}"
@@ -132,6 +143,10 @@ module "buildimage_codebuild_project" {
 }
 
 module "eks" {
-  count  = var.eks_enabled ? 1 : 0
-  source = "../../modules/eks"
+  count            = var.eks_enabled ? 1 : 0
+  source           = "../../modules/eks"
+  eks_cluster_name = "${var.eks_cluster_name}${local.env_suffix}"
+
+  #default subnets for 3 AZs in my default VPC
+  eks_subnets_ids  = data.aws_subnets.eks_subnets.ids
 }

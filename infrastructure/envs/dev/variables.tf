@@ -319,3 +319,8 @@ variable "eks_enabled" {
   description = "Lever to be able to destroy EKS specific infrastructure or not (True = keep ON / False = destroy on apply)"
   type        = bool
 }
+
+variable "eks_cluster_name" {
+  description = "Base cluster name — the env suffix is appended in main.tf"
+  type        = string
+}
