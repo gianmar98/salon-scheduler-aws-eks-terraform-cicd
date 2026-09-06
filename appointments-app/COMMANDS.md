@@ -219,6 +219,99 @@ aws ecr describe-images --repository-name $(terraform -chdir=../infrastructure/e
 Because the repository is `MUTABLE`, pushing `:latest` again repoints the tag and leaves
 the previous image untagged rather than failing.
 
+## Pull the pipeline's image and run it
+
+> **Run from `appointments-app/`.** The `-chdir` paths are relative to that directory.
+
+Every other section here runs an image built on this machine. This one runs the image
+**CodeBuild** built, which is the only way to answer three questions the local workflow
+cannot:
+
+- Does the Dockerfile produce a working image in a clean build environment, not just one
+  with a warm Docker cache and a developer's half-configured shell?
+- Did the push and pull round trip preserve it intact?
+- Does the image run somewhere other than the machine that built it?
+
+Until an image survives that, "it works on my laptop" is all that has been proven.
+
+### What happens before you type anything
+
+A push to `main` touching `appointments-app/` runs three pipeline stages:
+
+| Stage | What it does |
+|---|---|
+| Source | zips the repo into the artifact bucket |
+| Build | unzips it, runs pylint and the Django tests |
+| BuildImage | unzips it, runs `docker build`, applies three tags, pushes to ECR |
+
+Then the image sits in ECR. **Nothing deploys it** — there is no EKS and no deploy stage
+yet, so pulling it here is the only way to run what the pipeline produced. When a cluster
+exists it will pull the same image the same way; these commands stand in for it.
+
+### 1. Log in to the registry
+
+```bash
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url | cut -d/ -f1)
+```
+
+Same login as the manual push above — ECR has no permanent password, so this generates one
+that lasts 12 hours.
+
+### 2. Pull the image
+
+```bash
+docker pull $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url):latest
+```
+
+`latest` points at whichever build pushed most recently.
+
+### 3. Run it against RDS
+
+```bash
+docker run -it --rm -p 8088:8088 -v ~/.aws:/root/.aws:ro -e AWS_DEFAULT_REGION=us-east-1 -e LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 -e DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) -e DATABASE_USER=appointments_admin -e DATABASE_DB_NAME=salon $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url):latest
+```
+
+Identical to "Run the container against RDS" above except the image name is the ECR URL
+instead of the local `appointments-app`. The same five environment variables are required
+for the same reasons.
+
+Then open `http://localhost:8088`, book an appointment, and confirm it landed:
+`SELECT * FROM appointments_appointment;`. A new row is the proof — the pipeline's image
+reached RDS.
+
+### The platform warning is expected
+
+```
+WARNING: The requested image's platform (linux/amd64) does not match the detected host
+platform (linux/arm64/v8) and no specific platform was requested
+```
+
+Apple Silicon Macs are `arm64`; CodeBuild runs on Intel/AMD hardware and builds `amd64`.
+Those are different instruction sets, so Docker translates as it runs — it works, just
+slower to start. Nothing is wrong.
+
+It is worth knowing which way round this matters. **The pipeline building `amd64` is the
+correct outcome**, because EKS nodes are normally `amd64` too. An image built on the Mac
+and pushed by hand would be `arm64` and would fail on a node with `exec format error`.
+The laptop is the odd one out here, not the pipeline. To build an x86 image locally,
+`docker build --platform linux/amd64` emulates — correct, but much slower.
+
+### Why each flag is here
+
+The short version of these commands — the one that assumes a preconfigured cloud IDE —
+does not work on a laptop. Four differences, each with a failure attached:
+
+| Choice | Alternative | Why it is wrong here |
+|---|---|---|
+| `terraform output` for the registry | hardcoded `<account>.dkr.ecr...` | the account ID would end up in a committed file, and the repository name carries an env suffix Terraform generates |
+| `-v ~/.aws:/root/.aws:ro` | omit it | a container inherits no credentials on a laptop. On EC2 it would pick up the instance profile for free; here `django-iam-dbauth` has nothing to sign the RDS token with |
+| `-e DATABASE_HOST=$(...)` | bare `-e DATABASE_HOST` | the bare form forwards the variable from the shell, and only works if it was exported first. Empty is worse than missing: `settings.py` checks only that the variable is *present*, so an empty host still selects MySQL and then fails as a confusing local-socket error |
+| `-e LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1` | omit it | the IAM token travels as a cleartext password and the MySQL C library refuses to send one unless allowed. Without it: `(2059, "Authentication plugin 'mysql_clear_password' cannot be loaded")` |
+
+If the container hangs at "Performing system checks..." the RDS connection is stalling,
+not the image — usually the security group, after a home IP rotation. Re-apply the env
+layer to repoint it.
+
 ## Run the dev app server
 
 ```bash
