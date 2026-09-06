@@ -109,6 +109,7 @@ module "ecr" {
   appointments_ecr_image_tag_mutability = var.appointments_ecr_image_tag_mutability
   appointments_ecr_scan_on_push         = var.appointments_ecr_scan_on_push
   appointments_ecr_force_delete         = var.appointments_ecr_force_delete
+  appointments_ecr_untagged_expiry_days = var.appointments_ecr_untagged_expiry_days
 }
 
 

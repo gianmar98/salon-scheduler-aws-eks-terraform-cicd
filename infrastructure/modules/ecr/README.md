@@ -4,21 +4,38 @@ Holds the container image for the Django app. The repository is the Terraform-ma
 part; the image inside it is built and pushed by the pipeline's `BuildImage` stage, or
 by hand from `appointments-app/` when testing locally.
 
-Written directly in Terraform — one `aws_ecr_repository`, nothing else. No lifecycle
-policy: each `:latest` push orphans the previous image as untagged, but at roughly
-$0.10/GB-month on a ~500 MB image that is pennies. Now that the pipeline pushes on every
-qualifying commit, untagged images accumulate faster than they did by hand — add
-`aws_ecr_lifecycle_policy` if that starts to matter.
+Written directly in Terraform — the repository plus a lifecycle policy that clears
+untagged images. Storage is $0.10/GB-month with layers deduplicated across images, so a
+few builds cost pennies; the limit is 10,000 images per repository.
 
 ## What it creates
 
 | Resource | Purpose |
 |---|---|
 | `aws_ecr_repository.appointments_app` | the repository the image is pushed to |
+| `aws_ecr_lifecycle_policy.appointments_app` | expires untagged images |
+
+## The lifecycle policy is narrower than it looks
+
+`tagStatus = "untagged"` can only select an image with **zero** tags, so nothing
+reachable by name is ever at risk regardless of age. Rules evaluate within 24 hours of a
+push, not immediately.
+
+In practice it fires rarely. Every build pushes three tags — `latest`,
+`staging-test-image`, and the commit SHA. When the next build moves the first two, the
+previous image keeps its SHA tag, stays tagged, and is never selected. An image only goes
+fully untagged when its SHA tag is taken too, which happens when two builds race on the
+same commit — a `git push` and a manual "Release change" seconds apart, for instance.
+
+So this rule cleans up races and hand-pushed images. It does **not** stop the repository
+growing by one permanently-tagged image per commit. Capping that needs a second,
+count-based rule on tagged images — deliberately not added, because expiring a SHA tag
+deletes a rollback target, and that trade only makes sense once something actually
+deploys from here.
 
 ## Inputs
 
-All 4 are supplied by the env layer; validation lives here, not there.
+All 5 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -26,6 +43,7 @@ All 4 are supplied by the env layer; validation lives here, not there.
 | `appointments_ecr_image_tag_mutability` | string | `MUTABLE` \| `IMMUTABLE` |
 | `appointments_ecr_scan_on_push` | bool | basic CVE scanning, free |
 | `appointments_ecr_force_delete` | bool | `true` for dev, or destroy fails on a non-empty repo |
+| `appointments_ecr_untagged_expiry_days` | number | ≥ 1; ECR rejects 0 |
 
 Encryption is not an input: ECR encrypts at rest with AES256 by default at no cost, and
 the only alternative is a KMS key with its own charges.

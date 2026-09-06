@@ -26,3 +26,13 @@ variable "appointments_ecr_force_delete" {
   description = "Let destroy remove the repository while it still holds images"
   type        = bool
 }
+
+variable "appointments_ecr_untagged_expiry_days" {
+  description = "Days an untagged image is kept before the lifecycle policy expires it. Tagged images are never selected."
+  type        = number
+
+  validation {
+    condition     = var.appointments_ecr_untagged_expiry_days >= 1
+    error_message = "appointments_ecr_untagged_expiry_days must be at least 1; ECR rejects 0."
+  }
+}
