@@ -167,4 +167,7 @@ module "eks" {
   #Pod Identity
   eks_app_namespace       = var.eks_app_namespace
   eks_app_service_account = var.eks_app_service_account
+
+  eks_app_dynamodb_announcements_table_arn = module.announcements_dynamo_db_table.announcements_table_arn
+  eks_app_rds_db_user_arn                  = "arn:aws:rds-db:${data.aws_region.currentUser.region}:${data.aws_caller_identity.currentUser.account_id}:dbuser:${module.rds_db.appointments_db_resource_id}/${var.appointments_db_username}"
 }

@@ -79,3 +79,13 @@ variable "eks_app_service_account" {
   type        = string
 }
 
+variable "eks_app_dynamodb_announcements_table_arn" {
+  description = "This is the DynamoDB Announcements table arn"
+  type        = string
+}
+
+variable "eks_app_rds_db_user_arn" {
+  description = "This is the ARN of the RDS DB for the salon-db"
+  type        = string
+}
+

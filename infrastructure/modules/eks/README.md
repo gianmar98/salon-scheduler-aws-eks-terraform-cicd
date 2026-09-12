@@ -58,8 +58,9 @@ Re-enabling gives a **new endpoint and a new certificate**, so
 | `aws_eks_addon.pod_identity_agent` | AWS's credential-delivery agent, one pod per node |
 | `aws_iam_role.eks_app_role` | what the application pods assume |
 | `aws_eks_pod_identity_association.appointments_app` | binds a Kubernetes service account to that role |
+| `aws_iam_policy.eks_app_base_policy` + 1 attachment | what the application may do: scan the announcements table, open a database connection |
 
-Eleven objects on a first apply — the three node policy attachments come from one
+Thirteen objects on a first apply — the three node policy attachments come from one
 `for_each`.
 
 ## The two IAM roles are not interchangeable
@@ -94,7 +95,10 @@ Three objects, and all three are required:
 - **`aws_eks_addon.pod_identity_agent`** runs on every node and is what actually hands
   credentials to a pod. It carries a `depends_on` for the node group — created before any
   node exists it has nowhere to run and the addon reports `DEGRADED`.
-- **`aws_iam_role.eks_app_role`** is the identity. Its policies are what the app can do.
+- **`aws_iam_role.eks_app_role`** is the identity, carrying one policy with exactly two
+  statements: `dynamodb:Scan` on the announcements table, and `rds-db:connect` on one
+  database user. `views.py` makes one DynamoDB call and one database connection; nothing
+  else is granted.
 - **`aws_eks_pod_identity_association.appointments_app`** maps a namespace plus a service
   account name to that role.
 
@@ -108,6 +112,29 @@ applies successfully whether or not that account exists in the cluster, and a ty
 an error anywhere — the pod simply receives no credentials. `eks_app_service_account` must
 match `serviceAccountName` in `appointments-app/manifests/appointments-deployment.yml`
 exactly, and the ServiceAccount object itself is applied with `kubectl`, not Terraform.
+
+### The `rds-db:connect` ARN is not the instance ARN
+
+`rds-db` is a separate service namespace from `rds`. The instance ARN
+(`arn:aws:rds:…:db:salon-db-dev`) authorizes *managing* the instance; `rds-db:connect`
+authorizes *logging in as one database user*, so the ARN has to name that user:
+
+```
+arn:aws:rds-db:<region>:<account>:dbuser:<resource_id>/<username>
+```
+
+It is assembled in the env layer, not here, because it needs the account ID and region and
+this repository keeps account IDs out of committed `.tf`. `<resource_id>` is
+`module.rds_db.appointments_db_resource_id` — the immutable `db-XXXX` value, not the
+identifier, so renaming the instance cannot break or misdirect the grant.
+
+Nothing validates any of it. A wrong account attribute (`user_id` in place of `account_id`
+is the easy mistake) still produces a well-formed ARN, still plans and applies, and
+surfaces much later as the application failing to reach the database.
+
+**`rds-db:connect` only grants permission to request a token.** The database must also have
+a user created `IDENTIFIED WITH AWSAuthenticationPlugin` before that token is accepted —
+that half lives in the `rds` module, not here.
 
 ## `depends_on` is load-bearing on both resources
 
@@ -163,7 +190,7 @@ the architecture matches. Keep every entry in the same family.
 
 ## Inputs
 
-All 12 are supplied by the env layer; validation lives here, not there.
+All 14 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -179,10 +206,13 @@ All 12 are supplied by the env layer; validation lives here, not there.
 | `eks_node_max_size` | number | upper bound |
 | `eks_app_namespace` | string | namespace the app pods run in |
 | `eks_app_service_account` | string | must match `serviceAccountName` in the deployment manifest |
+| `eks_app_dynamodb_announcements_table_arn` | string | computed in the env layer from the `dynamodb` module's output |
+| `eks_app_rds_db_user_arn` | string | computed in the env layer; `rds-db` namespace, not `rds` |
 
 `eks_subnets_ids` is computed from a data source in the env layer and so never passes
 through `envs/dev/variables.tf` or `terraform.tfvars` — the same shape as
-`appointments_db_vpc_id` on the `rds` module.
+`appointments_db_vpc_id` on the `rds` module. The two ARN inputs are computed the same way,
+from other modules' outputs, and are likewise absent from `terraform.tfvars`.
 
 With no autoscaler installed, `min`/`max` are guardrails only: `desired` never changes on
 its own.

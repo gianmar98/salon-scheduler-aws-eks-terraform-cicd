@@ -38,6 +38,34 @@ resource "aws_iam_role" "eks_app_role" {
 resource "aws_eks_pod_identity_association" "appointments_app" {
   role_arn        = aws_iam_role.eks_app_role.arn
   cluster_name    = aws_eks_cluster.salon_eks_cluster.name
-  namespace       = var.eks_app_namespace #folder inside cluster (Secured office building/logical boundary/container)
+  namespace       = var.eks_app_namespace       #folder inside cluster (Secured office building/logical boundary/container)
   service_account = var.eks_app_service_account #employee ID badge (account to give apps permissions to do things)
+}
+
+# APP PERMISSIONS --------------------------------------------------
+data "aws_iam_policy_document" "eks_app_base_statements" {
+  statement { #scan permissions to dynamoDB Announcements tables
+    sid       = "ReadAnnouncements"
+    effect    = "Allow"
+    actions   = ["dynamodb:Scan"]
+    resources = [var.eks_app_dynamodb_announcements_table_arn]
+  }
+
+  statement { #rds connection to RDS
+    sid       = "ConnectToDatabase"
+    effect    = "Allow"
+    actions   = ["rds-db:connect"]
+    resources = [var.eks_app_rds_db_user_arn]
+  }
+
+}
+#add base statement permissions to the base policy that will be attached to the eks app role
+resource "aws_iam_policy" "eks_app_base_policy" {
+  name   = "${var.eks_cluster_name}-app-policy"
+  policy = data.aws_iam_policy_document.eks_app_base_statements.json
+}
+#attach to app base role
+resource "aws_iam_role_policy_attachment" "eks_app_base_policy_attachment" {
+  role       = aws_iam_role.eks_app_role.name
+  policy_arn = aws_iam_policy.eks_app_base_policy.arn
 }

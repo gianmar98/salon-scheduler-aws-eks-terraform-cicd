@@ -399,3 +399,37 @@ the same thing, which is why both are worth checking.
 
 `eksctl get cluster` reports `EKSCTL CREATED: False`. That is correct — the cluster was
 created by Terraform, not by `eksctl`, which is only being used to read here.
+
+## Check Pod Identity is wired
+
+```bash
+aws eks list-pod-identity-associations --cluster-name salon-eks-cluster-dev
+kubectl get daemonset -n kube-system eks-pod-identity-agent
+```
+
+Pod Identity is what lets the application call AWS without an access key in the image. The
+first command asks the **AWS** side: is there a rule mapping a Kubernetes service account to
+an IAM role? Before `modules/eks/pod_identity.tf` was applied this returned
+`{"associations": []}`; afterwards it lists one, for `appointments-sa` in `default`.
+
+The second asks the **Kubernetes** side: is the agent that actually hands out those
+credentials running? It is a DaemonSet, meaning one copy per node, so `DESIRED`, `CURRENT`,
+and `READY` should all equal the node count. `0` desired means the addon was created before
+the node group existed.
+
+Both can look healthy while the app still gets no credentials. The association stores the
+service account as a plain string and never checks that it exists, so a name that does not
+match `serviceAccountName` in `manifests/appointments-deployment.yml` fails silently — no
+error from AWS, no error from Kubernetes, just a pod with no permissions.
+
+To confirm end to end, exec into a running pod and check which identity it picked up:
+
+```bash
+kubectl exec deploy/appointments-deployment -- \
+  python3 -c "import boto3; print(boto3.client('sts').get_caller_identity()['Arn'])"
+```
+
+`boto3`, not the AWS CLI — the image is `python:3.12-slim` and the CLI is not installed.
+
+The ARN should contain `salon-eks-cluster-dev-app-role`. If it names the *node* role
+instead, the badge did not match and the pod fell back to the node's own permissions.
