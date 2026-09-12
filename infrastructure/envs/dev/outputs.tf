@@ -64,3 +64,8 @@ output "aws_subnets" {
   description = "Subnets of us-east-1a,b,c from default vpc of current region"
   value       = data.aws_subnets.eks_subnets.ids
 }
+
+output "eks_kubeconfig_command" {
+  description = "Command to point kubectl at the cluster — rerun after every rebuild, the endpoint and CA change each time"
+  value       = try(module.eks[0].kubeconfig_command, null)
+}
