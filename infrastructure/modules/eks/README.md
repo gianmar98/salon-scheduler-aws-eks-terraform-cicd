@@ -55,8 +55,11 @@ Re-enabling gives a **new endpoint and a new certificate**, so
 | `aws_iam_role.salon_eks_cluster_role` + 1 attachment | what EKS assumes to manage AWS resources |
 | `aws_iam_role.eks_node_role` + 3 attachments | what the instances assume |
 | `aws_autoscaling_group_tag.node_name` | gives launched instances a `Name` in the EC2 console |
+| `aws_eks_addon.pod_identity_agent` | AWS's credential-delivery agent, one pod per node |
+| `aws_iam_role.eks_app_role` | what the application pods assume |
+| `aws_eks_pod_identity_association.appointments_app` | binds a Kubernetes service account to that role |
 
-Eight objects on a first apply — the three node policy attachments come from one
+Eleven objects on a first apply — the three node policy attachments come from one
 `for_each`.
 
 ## The two IAM roles are not interchangeable
@@ -79,6 +82,32 @@ mention IAM:
 
 The third is what ties this module to the rest of the project — it is how a node pulls the
 image `codebuild_buildimage` pushes to ECR.
+
+## Pod Identity is how the application gets AWS credentials
+
+A third role, with a third trust principal: `pods.eks.amazonaws.com`. The cluster and node
+roles are assumed by AWS services; this one is assumed by *the application*, so Django can
+call DynamoDB and RDS without an access key baked into the image.
+
+Three objects, and all three are required:
+
+- **`aws_eks_addon.pod_identity_agent`** runs on every node and is what actually hands
+  credentials to a pod. It carries a `depends_on` for the node group — created before any
+  node exists it has nowhere to run and the addon reports `DEGRADED`.
+- **`aws_iam_role.eks_app_role`** is the identity. Its policies are what the app can do.
+- **`aws_eks_pod_identity_association.appointments_app`** maps a namespace plus a service
+  account name to that role.
+
+**The trust policy needs `sts:TagSession` as well as `sts:AssumeRole`.** Pod Identity tags
+each session with the namespace and service account it came from, so without permission to
+tag it cannot assume at all. Everything applies cleanly; the failure surfaces later, at
+runtime, in the pod.
+
+The association stores the service account as a **string** and never resolves it. Terraform
+applies successfully whether or not that account exists in the cluster, and a typo is not
+an error anywhere — the pod simply receives no credentials. `eks_app_service_account` must
+match `serviceAccountName` in `appointments-app/manifests/appointments-deployment.yml`
+exactly, and the ServiceAccount object itself is applied with `kubectl`, not Terraform.
 
 ## `depends_on` is load-bearing on both resources
 
@@ -134,7 +163,7 @@ the architecture matches. Keep every entry in the same family.
 
 ## Inputs
 
-All 9 are supplied by the env layer; validation lives here, not there.
+All 12 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -148,6 +177,8 @@ All 9 are supplied by the env layer; validation lives here, not there.
 | `eks_node_desired_size` | number | nodes now |
 | `eks_node_min_size` | number | lower bound |
 | `eks_node_max_size` | number | upper bound |
+| `eks_app_namespace` | string | namespace the app pods run in |
+| `eks_app_service_account` | string | must match `serviceAccountName` in the deployment manifest |
 
 `eks_subnets_ids` is computed from a data source in the env layer and so never passes
 through `envs/dev/variables.tf` or `terraform.tfvars` — the same shape as
@@ -158,8 +189,19 @@ its own.
 
 ## Outputs
 
-None yet. Cluster name and endpoint are the obvious two — see the `count` note above for
-the `try()` they will need in the env layer.
+One: `kubeconfig_command`, the `aws eks update-kubeconfig` line with the region and cluster
+name already filled in. The env layer re-exports it as `eks_kubeconfig_command`, wrapped in
+`try(module.eks[0].kubeconfig_command, null)` so it returns `null` rather than erroring when
+`eks_enabled = false` — the `count` note above.
+
+It is an output rather than a `local-exec` provisioner on purpose. A provisioner runs only
+on *create*, writes machine-local state Terraform cannot see or clean up, and taints the
+cluster if it fails — a missing `aws` CLI would trigger a 20-minute rebuild. Printing the
+command and running it by hand costs nothing and breaks nothing.
+
+The region comes from a module-local `data "aws_region" "current"`, matching
+`codebuild_unittest` and `codebuild_buildimage`. A data source cannot be passed across a
+module boundary.
 
 ## Access
 

@@ -163,4 +163,8 @@ module "eks" {
   eks_node_desired_size   = var.eks_node_desired_size
   eks_node_min_size       = var.eks_node_min_size
   eks_node_max_size       = var.eks_node_max_size
+
+  #Pod Identity
+  eks_app_namespace       = var.eks_app_namespace
+  eks_app_service_account = var.eks_app_service_account
 }

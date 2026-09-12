@@ -364,3 +364,13 @@ variable "eks_node_max_size" {
   description = "Upper bound on node count"
   type        = number
 }
+
+variable "eks_app_namespace" {
+  description = "Namespace the app pods run in"
+  type        = string
+}
+
+variable "eks_app_service_account" {
+  description = "Service account the app pods run as — must match serviceAccountName in the deployment manifest"
+  type        = string
+}
