@@ -37,6 +37,17 @@ the repository root is the Django app itself; and correcting a duplicated "Build
 started" log line, the post_build indentation, and a comment naming CodeCommit where
 this repository uses GitHub. The file header records the same list.
 
+It is true once more of the Lab 7 change inside appointments-app/ —
+manifests/appointments-deployment.yml and manifests/appointments-service.yml. ACI
+supplied both files with INSERT placeholders for the student to complete, so their
+structure and field choices are ACI's content. The author's edits are adaptations to
+this repository's own infrastructure: targetPort 8088 in the service rather than the
+lab's 8080, matching the port this repository's Dockerfile exposes; and the
+LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN environment variable in the deployment, which the lab
+does not need because its database uses a password while this one authenticates with an
+IAM token. The remaining placeholders are left unfilled on purpose — the real values
+carry the AWS account ID and the RDS endpoint, which this repository keeps out of git.
+
 Everything in infrastructure/ is the original work of this repository's author:
 the Terraform module and environment layout; the DynamoDB table configuration; the
 codebuild_unittest module with its IAM service role and policies, CloudWatch log group,

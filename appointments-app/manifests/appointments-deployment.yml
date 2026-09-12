@@ -1,0 +1,38 @@
+# WHAT TO RUN
+# Keeping 2 copies of ECR image running. Give each 5 env vars, run them
+#   under the identity appointments-sa. Always re pull the image (each running copy is a pod and replaced with new IP)
+
+#starts and babysits pods
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: appointments-deployment
+  name: appointments-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: appointments-deployment
+  template:
+    metadata:
+      labels:
+        app: appointments-deployment
+    spec:
+      serviceAccountName: appointments-sa #links pod to IAM role
+      containers:
+      - image: <INSERT_CONTAINER_IMAGE_URI>
+        name: webserver
+        imagePullPolicy: Always
+        env:
+          - name: AWS_DEFAULT_REGION
+            value: <INSERT_AWS_REGION>
+          - name: DATABASE_HOST
+            value: <INSERT_RDS_ENDPOINT_NAME>
+          - name: DATABASE_USER
+            value: <INSERT_DATABASE_USER>
+          - name: DATABASE_DB_NAME
+            value: <INSERT_DB_NAME>
+          - name: LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN
+            value: "1"

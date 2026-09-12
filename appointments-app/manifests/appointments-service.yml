@@ -1,0 +1,24 @@
+#HOW TO REACH IT
+
+
+
+# Make 1 stable entry point. Send anything arriving on port 80 -> 8088 inside whichever
+#   pods are live right now. And ask for AWS for a public LB in front of it
+
+# give pods an address it can use
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: appointments-deployment
+  name: appointments-service
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8088 #8088 is from Docker File/Container
+  selector:
+    app: appointments-deployment
+  type: LoadBalancer
+
