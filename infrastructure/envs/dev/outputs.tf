@@ -62,5 +62,5 @@ output "appointments_db_master_user_secret_arn" {
 
 output "aws_subnets" {
   description = "Subnets of us-east-1a,b,c from default vpc of current region"
-  value = data.aws_subnets.eks_subnets
+  value       = data.aws_subnets.eks_subnets.ids
 }

@@ -22,10 +22,17 @@ provided by the Amazon Cloud Institute, everything under `infrastructure/` is or
 | **CI** | a three-stage CodePipeline — pull from GitHub, run pylint and the test suite, then build the container image — triggered only by pushes to `main` that touch `appointments-app/` |
 | **Images** | built by CodeBuild and pushed to ECR as `latest`, `staging-test-image`, and the commit SHA |
 | **Reports** | JUnit and Cobertura published to CodeBuild report groups on every run |
+| **Cluster** | EKS with a two-node spot node group, behind an `eks_enabled` switch so it can be destroyed when idle |
 | **State** | S3 remote backend with lockfile |
 
-Not built yet: EKS, and any deploy stage. The image reaches ECR and stops there. The
-repository name describes the intended destination.
+Not built yet: any deploy stage. The image reaches ECR and stops there, and nothing runs
+on the cluster — it exists, but the pipeline does not know about it.
+
+**The cluster is the expensive part.** The EKS control plane is $0.10/hour flat — about
+$73/month — regardless of load, with no free tier and no pause. `eks_enabled = false` in
+`terraform.tfvars` followed by `terraform apply` destroys the cluster and nothing else;
+setting it back to `true` rebuilds it in about twenty minutes. See
+[`modules/eks`](infrastructure/modules/eks/README.md).
 
 ## Running the app locally
 
@@ -85,6 +92,17 @@ the connection, click **Update pending connection**, and install the AWS Connect
 GitHub app. Until then builds cannot clone the repository. It is once per account and
 region; a later CodePipeline reuses the same connection.
 
+**To use the cluster**, point `kubectl` at it — this writes `~/.kube/config` locally and
+changes nothing in AWS:
+
+```bash
+aws eks update-kubeconfig --region us-east-1 --name salon-eks-cluster-dev
+kubectl get nodes
+```
+
+Re-run it after every rebuild; a new cluster means a new endpoint and certificate.
+[`appointments-app/COMMANDS.md`](appointments-app/COMMANDS.md) covers the failure modes.
+
 ## Conventions
 
 `infrastructure/` follows a strict modules/envs split: modules own their validation and
@@ -100,14 +118,15 @@ there, not with the `.tf` files:
 - [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md) — the three stages
 - [`modules/dynamodb`](infrastructure/modules/dynamodb/README.md) — announcements table
 - [`modules/ecr`](infrastructure/modules/ecr/README.md) — image repository
+- [`modules/eks`](infrastructure/modules/eks/README.md) — cluster, node group, and the `eks_enabled` cost switch
 - [`modules/rds`](infrastructure/modules/rds/README.md) — MySQL instance and IAM auth
 
 The unit-test CodeBuild stack was built in the AWS console first and adopted into
 Terraform with `import` blocks — twelve objects, nothing recreated. That process, and
 the traps in it, is written up under Provenance in
 [`modules/codebuild_unittest`](infrastructure/modules/codebuild_unittest/README.md).
-Everything since — the pipeline, RDS, ECR, and the image builder — was written directly
-in Terraform.
+Everything since — the pipeline, RDS, ECR, the image builder, and EKS — was written
+directly in Terraform.
 
 ## License
 

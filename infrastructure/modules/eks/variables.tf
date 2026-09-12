@@ -17,3 +17,54 @@ variable "eks_subnets_ids" {
   }
 }
 
+variable "eks_kubernetes_version" {
+  description = "Kubernetes minor version of the control plane — pin it or AWS picks the current default"
+  type        = string
+}
+
+# NODE GROUP ---------------------------------------------------------------------
+variable "eks_node_group_name" {
+  description = "Node group name — env-suffixed by the caller"
+  type        = string
+}
+
+variable "eks_node_capacity_type" {
+  description = "SPOT for reclaimable spare capacity, ON_DEMAND for guaranteed"
+  type        = string
+
+  validation {
+    condition     = contains(["SPOT", "ON_DEMAND"], var.eks_node_capacity_type)
+    error_message = "Capacity type must be SPOT or ON_DEMAND"
+  }
+}
+
+variable "eks_node_instance_types" {
+  description = "Instance types the node group may launch — must all match ami_type's architecture"
+  type        = list(string)
+
+  validation {
+    condition     = length(var.eks_node_instance_types) >= 1
+    error_message = "At least one instance type is required"
+  }
+}
+
+variable "eks_node_disk_size" {
+  description = "EBS volume size per node, in GiB"
+  type        = number
+}
+
+variable "eks_node_desired_size" {
+  description = "Nodes to run now — must sit between min and max"
+  type        = number
+}
+
+variable "eks_node_min_size" {
+  description = "Lower bound on node count"
+  type        = number
+}
+
+variable "eks_node_max_size" {
+  description = "Upper bound on node count"
+  type        = number
+}
+

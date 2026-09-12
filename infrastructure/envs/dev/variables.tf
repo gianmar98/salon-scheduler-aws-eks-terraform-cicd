@@ -324,3 +324,43 @@ variable "eks_cluster_name" {
   description = "Base cluster name — the env suffix is appended in main.tf"
   type        = string
 }
+
+variable "eks_kubernetes_version" {
+  description = "Kubernetes minor version of the control plane"
+  type        = string
+}
+
+variable "eks_node_group_name" {
+  description = "Base node group name — the env suffix is appended in main.tf"
+  type        = string
+}
+
+variable "eks_node_capacity_type" {
+  description = "SPOT for reclaimable spare capacity, ON_DEMAND for guaranteed"
+  type        = string
+}
+
+variable "eks_node_instance_types" {
+  description = "Instance types the node group may launch"
+  type        = list(string)
+}
+
+variable "eks_node_disk_size" {
+  description = "EBS volume size per node, in GiB"
+  type        = number
+}
+
+variable "eks_node_desired_size" {
+  description = "Nodes to run now"
+  type        = number
+}
+
+variable "eks_node_min_size" {
+  description = "Lower bound on node count"
+  type        = number
+}
+
+variable "eks_node_max_size" {
+  description = "Upper bound on node count"
+  type        = number
+}

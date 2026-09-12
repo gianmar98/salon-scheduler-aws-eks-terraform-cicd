@@ -44,8 +44,22 @@ webhook, and test and coverage report groups; the codebuild_buildimage module wi
 role, policies, log group, and ECR push permissions; the CodePipeline module with its
 service role, artifact bucket, GitHub source trigger, and three stages; the ECR
 repository module; the RDS module with its security group and the IAM database
-authentication wiring in envs/dev; the CodeConnections wiring to GitHub; and the S3
-remote state backend.
+authentication wiring in envs/dev; the EKS module with its cluster, managed node group,
+cluster and node IAM roles, and the eks_enabled switch in envs/dev that destroys it on
+demand; the CodeConnections wiring to GitHub; and the S3 remote state backend.
+
+The EKS module deserves a specific note. The ACI lab did not ask for a cluster to be
+built: it assumed one named eks-cluster already provisioned in the lab account and asked
+the student only to verify it with kubectl and eksctl. No lab instructions, skeleton, or
+solution exist for creating one. This repository has no such pre-provisioned cluster, so
+the author researched and wrote the cluster, node group, IAM roles and trust policies,
+subnet selection, endpoint access configuration, and the eks_enabled destroy switch from
+scratch. The lab's verification commands are the only part that traces to ACI, and they
+are commands to run, not code.
+
+Two files outside infrastructure/ are also the author's own work, not ACI's:
+appointments-app/COMMANDS.md, an annotated reference for the local, Docker, ECR, and
+kubectl workflows, written for this repository and this machine; and the root README.md.
 
 Any further files added by the repository author will be noted here as they are
 introduced.

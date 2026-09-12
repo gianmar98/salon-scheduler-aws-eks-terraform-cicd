@@ -319,3 +319,83 @@ python3 manage.py runserver 0.0.0.0:8088
 ```
 
 Starts Django's development server on port 8088, bound to all interfaces (`0.0.0.0`) so it's reachable from outside the machine — e.g. the Cloud9/EC2 preview — not just `localhost`. Ctrl-C to stop.
+
+## Point kubectl at the EKS cluster
+
+> Run from anywhere. Requires the cluster to exist — `eks_enabled = true` in
+> `terraform.tfvars`, then `terraform apply`.
+
+> **Required for `kubectl` but not for `eksctl`.** `eksctl get cluster` and
+> `eksctl get nodegroup` query the **AWS** EKS API and authenticate with plain AWS
+> credentials, so they work with no kubeconfig at all — they see the cluster as an AWS
+> resource. `kubectl` queries the **Kubernetes** API inside the cluster, which is what
+> needs the address, the certificate, and the token. Two different APIs, which is why
+> `eksctl` can list a cluster that `kubectl` cannot reach.
+
+```bash
+aws eks update-kubeconfig --region us-east-1 --name salon-eks-cluster-dev
+```
+
+**Writes a file on this machine, not in the cluster.** The only AWS call it makes is a
+read-only `DescribeCluster`; everything else happens locally in `~/.kube/config`.
+
+`kubectl` is a generic tool that talks to any Kubernetes cluster anywhere, so it has no
+idea which one is meant until that file tells it three things:
+
+- **where** — the API server address
+- **is it really them** — the cluster's certificate authority, used to verify the
+  connection
+- **who are you** — an instruction to run `aws eks get-token` for a short-lived token
+  rather than a stored password. That indirection is why AWS credentials are what grant
+  access, and why nothing secret is saved to disk.
+
+Without it, `kubectl` falls back to its default guess of `localhost:8080` and fails with
+a connection error.
+
+**Re-run after every rebuild.** Setting `eks_enabled = false` and re-applying destroys
+the cluster; the next one gets a new endpoint and a new certificate, and the stale entry
+fails with a TLS or timeout error that does not mention the real cause.
+
+## Check the cluster is up
+
+```bash
+kubectl get nodes
+```
+
+The first real request. Expect two nodes in `Ready` — they can take a couple of minutes
+to appear after `terraform apply` returns.
+
+Three failures worth recognising:
+
+- **Nodes never appear, and the node group hangs in `CREATING` for 10+ minutes.**
+  `vpc_config` narrows `public_access_cidrs` to one IP, so nodes must reach the API
+  server through the *private* endpoint. If `endpoint_private_access` is ever set back to
+  `false`, nodes get refused at the public endpoint and retry until the 60-minute
+  timeout. Nothing in the error mentions networking.
+- **`Unauthorized` in the AWS console's Kubernetes tabs.** Expected.
+  `bootstrap_cluster_creator_admin_permissions = true` grants cluster-admin only to the
+  IAM principal that ran `terraform apply`. Browsing the console as a different principal
+  (root, another user) means it cannot read nodes or pods. `kubectl` from this terminal
+  uses the credentials that *did* run apply, so it works regardless. Granting the console
+  principal access needs an `aws_eks_access_entry`.
+- **Connection times out from a new network.** `public_access_cidrs` is resolved from
+  whoever ran `apply`. A changed IP locks this machine out until the env layer is
+  re-applied — the same trap as the RDS security group.
+
+## Verification commands
+
+```bash
+kubectl version                                        # client version, and the cluster's once connected
+eksctl version                                         # confirms eksctl is installed
+eksctl get cluster                                     # every cluster in the region
+kubectl get nodes                                      # nodes and their Ready status
+eksctl get nodegroup --cluster=salon-eks-cluster-dev   # node group size, type, and health
+kubectl cluster-info                                   # API server and CoreDNS endpoints
+```
+
+`kubectl` talks to the cluster's Kubernetes API and only sees what is inside it. `eksctl`
+talks to the AWS EKS API and sees the cluster as an AWS resource. Two different views of
+the same thing, which is why both are worth checking.
+
+`eksctl get cluster` reports `EKSCTL CREATED: False`. That is correct — the cluster was
+created by Terraform, not by `eksctl`, which is only being used to read here.

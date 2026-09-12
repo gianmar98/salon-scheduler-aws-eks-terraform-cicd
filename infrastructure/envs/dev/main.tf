@@ -22,9 +22,12 @@ data "aws_subnets" "eks_subnets" {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
+  # Filtered by AZ *ID*, not the us-east-1a/b/c letters: AWS shuffles those per
+  # account, so the same letter is a different datacenter elsewhere. IDs are global.
+  # use1-az3 is left out on purpose — EKS control planes can't run there.
   filter {
-    name   = "availability-zone"
-    values = ["us-east-1a", "us-east-1b", "us-east-1c"]
+    name   = "availability-zone-id"
+    values = ["use1-az1", "use1-az2", "use1-az6"]
   }
 }
 
@@ -147,6 +150,17 @@ module "eks" {
   source           = "../../modules/eks"
   eks_cluster_name = "${var.eks_cluster_name}${local.env_suffix}"
 
+  eks_kubernetes_version = var.eks_kubernetes_version
+
   #default subnets for 3 AZs in my default VPC
-  eks_subnets_ids  = data.aws_subnets.eks_subnets.ids
+  eks_subnets_ids = data.aws_subnets.eks_subnets.ids
+
+  #Node group
+  eks_node_group_name     = "${var.eks_node_group_name}${local.env_suffix}"
+  eks_node_capacity_type  = var.eks_node_capacity_type
+  eks_node_instance_types = var.eks_node_instance_types
+  eks_node_disk_size      = var.eks_node_disk_size
+  eks_node_desired_size   = var.eks_node_desired_size
+  eks_node_min_size       = var.eks_node_min_size
+  eks_node_max_size       = var.eks_node_max_size
 }
