@@ -97,7 +97,7 @@ Creates `db.sqlite3` and applies every migration, including `0002_populate.py`, 
 > relative to that directory, so it fails anywhere else.
 
 ```bash
-LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) DATABASE_USER=appointments_admin DATABASE_DB_NAME=salon AWS_DEFAULT_REGION=us-east-1 python3 manage.py migrate
+LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) DATABASE_USER=appointments_app DATABASE_DB_NAME=salon AWS_DEFAULT_REGION=us-east-1 python3 manage.py migrate
 ```
 
 One line on purpose — the shell breaks this command if a backslash-continued paste picks up trailing whitespace.
@@ -105,7 +105,13 @@ One line on purpose — the shell breaks this command if a backslash-continued p
 - The three `DATABASE_*` variables are what `settings.py` checks — set together, they switch `DATABASES` from SQLite to `django_iam_dbauth.aws.mysql`. Miss one and Django silently uses SQLite instead.
 - `AWS_DEFAULT_REGION` is required because the IAM auth token has to be signed for a region.
 - `LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1` is mandatory. The IAM token is sent as a cleartext password, and the MySQL C library refuses that unless told to allow it. `mysqlclient` exposes no setting for this, so the variable is the only way. Without it: `(2059, "Authentication plugin 'mysql_clear_password' cannot be loaded: plugin not enabled")`.
-- No password anywhere: the engine mints a 15-minute token per connection as `appointments_admin`, which requires `rds-db:connect` on your IAM user.
+- No password anywhere: the engine mints a 15-minute token per connection as `appointments_app`, which requires `rds-db:connect` on your IAM user.
+- **This command needs privileges the app user does not have.** `mysql_grant.app` gives it
+  `SELECT`, `INSERT`, `UPDATE`, `DELETE` and nothing else, while `migrate` issues `CREATE
+  TABLE` and `ALTER TABLE`. The schema is already built, so this is only a problem the next
+  time a migration is added — grant the schema privileges for that run, or add a separate
+  migration user. `salonadmin` is not an option: `settings.py` only speaks IAM auth, and the
+  master user authenticates with a password.
 
 The variables apply only to this command, so every other `manage.py` run stays on SQLite. Swap `migrate` for `runserver 0.0.0.0:8088` to run the app itself against RDS.
 
@@ -114,7 +120,7 @@ The variables apply only to this command, so every other `manage.py` run stays o
 > **Run from `appointments-app/`, with the venv active.**
 
 ```bash
-export LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) DATABASE_USER=appointments_admin DATABASE_DB_NAME=salon AWS_DEFAULT_REGION=us-east-1
+export LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) DATABASE_USER=appointments_app DATABASE_DB_NAME=salon AWS_DEFAULT_REGION=us-east-1
 ```
 
 Then start the server as normal — it now writes to RDS:
@@ -128,6 +134,46 @@ Sets the variables once instead of prefixing every command, so `migrate` and `db
 They live only in this terminal. Close it, or open a second tab, and you are back on SQLite — so check with `echo $DATABASE_HOST` if the app is writing rows you cannot find in MySQL. That is the usual cause: `runserver` started without these silently uses `db.sqlite3`.
 
 This is a stand-in for what Terraform will do on EKS, where the same three `DATABASE_*` variables are set in the pod spec and the container always has them. Deliberately not added to `.bashrc`, so the default stays SQLite and the test suite is never pointed at a real database by accident.
+
+## Check the IAM database user exists and accepts a token
+
+Two separate things have to be true before the application can reach MySQL, and they fail
+in ways that look identical from the app. This checks both without involving Django.
+
+```bash
+DB_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address)
+TOKEN="$(aws rds generate-db-auth-token --hostname $DB_HOST --port 3306 --username appointments_app)"
+mysql -h $DB_HOST -u appointments_app -p$TOKEN --ssl=1 -D salon
+```
+
+- `generate-db-auth-token` asks AWS for a 15-minute password. It succeeds only if the
+  caller holds `rds-db:connect` on `dbuser:<resource id>/appointments_app` — the statement
+  `modules/eks/pod_identity.tf` attaches to the application role.
+- The token is passed as the password with `-p`, no space. `--ssl=1` is required: the token
+  travels in cleartext inside the TLS session, and RDS refuses it otherwise.
+
+Getting a token but being refused at login means the AWS half works and the database half
+does not — the MySQL user is missing, or was created with a password instead of the plugin.
+Confirm which:
+
+```sql
+SELECT user, host, plugin FROM mysql.user;
+SELECT user, host, plugin FROM mysql.user WHERE user = 'appointments_app';
+SHOW GRANTS FOR 'appointments_app'@'%';
+```
+
+The first lists every user on the instance. Expect `salonadmin` (the master, on
+`mysql_native_password` or `caching_sha2_password`), `appointments_app`, and a handful of
+`rds*` and `mysql.*` accounts RDS maintains for itself — those are normal, leave them alone.
+
+`plugin` must read `AWSAuthenticationPlugin`. Anything else and the user cannot accept a
+token at all, whatever IAM says. That plugin is what `mysql_user.app` in `modules/rds` sets,
+and it is the reason the application has no password anywhere.
+
+The grants are deliberately narrow — `SELECT`, `INSERT`, `UPDATE`, `DELETE` on `salon` only.
+That is everything the running application does, and nothing more: it cannot create, alter,
+or drop a table. The cost is that `migrate` cannot run as this user either — see the note
+under "Apply migrations to the RDS database".
 
 ## Build the Docker image
 
@@ -150,7 +196,7 @@ nothing runs until `docker run`.
 > **Run from `appointments-app/`.** The `-chdir` path is relative to that directory.
 
 ```bash
-docker run -it --rm -p 8088:8088 -v ~/.aws:/root/.aws:ro -e AWS_DEFAULT_REGION=us-east-1 -e LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 -e DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) -e DATABASE_USER=appointments_admin -e DATABASE_DB_NAME=salon appointments-app
+docker run -it --rm -p 8088:8088 -v ~/.aws:/root/.aws:ro -e AWS_DEFAULT_REGION=us-east-1 -e LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 -e DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) -e DATABASE_USER=appointments_app -e DATABASE_DB_NAME=salon appointments-app
 ```
 
 One line on purpose, like the migrate command above. Paste it whole — if the terminal
@@ -268,7 +314,7 @@ docker pull $(terraform -chdir=../infrastructure/envs/dev output -raw appointmen
 ### 3. Run it against RDS
 
 ```bash
-docker run -it --rm -p 8088:8088 -v ~/.aws:/root/.aws:ro -e AWS_DEFAULT_REGION=us-east-1 -e LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 -e DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) -e DATABASE_USER=appointments_admin -e DATABASE_DB_NAME=salon $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url):latest
+docker run -it --rm -p 8088:8088 -v ~/.aws:/root/.aws:ro -e AWS_DEFAULT_REGION=us-east-1 -e LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1 -e DATABASE_HOST=$(terraform -chdir=../infrastructure/envs/dev output -raw appointments_db_address) -e DATABASE_USER=appointments_app -e DATABASE_DB_NAME=salon $(terraform -chdir=../infrastructure/envs/dev output -raw appointments_ecr_repository_url):latest
 ```
 
 Identical to "Run the container against RDS" above except the image name is the ECR URL

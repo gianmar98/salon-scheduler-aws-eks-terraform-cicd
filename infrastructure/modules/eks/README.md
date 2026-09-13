@@ -219,7 +219,14 @@ its own.
 
 ## Outputs
 
-One: `kubeconfig_command`, the `aws eks update-kubeconfig` line with the region and cluster
+Two.
+
+`cluster_security_group_id` is the security group EKS creates and attaches to the managed
+nodes. `modules/rds` takes it as an allowed inbound source, so pods can reach the database
+without anyone tracking node IP addresses — nodes are replaced routinely and their addresses
+change, group membership does not.
+
+`kubeconfig_command` is the `aws eks update-kubeconfig` line with the region and cluster
 name already filled in. The env layer re-exports it as `eks_kubeconfig_command`, wrapped in
 `try(module.eks[0].kubeconfig_command, null)` so it returns `null` rather than erroring when
 `eks_enabled = false` — the `count` note above.

@@ -14,11 +14,14 @@ left out.
 | `aws_db_instance.salon_rds_mysql` | the instance; master password owned by RDS in Secrets Manager |
 | `aws_security_group.rds_sg` | the access gate — one ingress rule, no egress |
 | `aws_vpc_security_group_ingress_rule.mysql_from_client` | opens the DB port to a single client IP |
+| `aws_vpc_security_group_ingress_rule.mysql_from_eks` | opens the DB port to the EKS node security group; skipped when EKS is off |
 | `data.http.myip` | resolves the applying machine's public IP |
+| `mysql_user.app` | the application's login, created with `AWSAuthenticationPlugin` |
+| `mysql_grant.app` | that login's privileges — DML on one database, nothing else |
 
 ## Inputs
 
-All 14 are supplied by the env layer; validation lives here, not there.
+All 16 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -29,6 +32,7 @@ All 14 are supplied by the env layer; validation lives here, not there.
 | `appointments_db_engine_version` | string | must match the parameter group's family |
 | `appointments_db_instance_class` | string | |
 | `appointments_db_username` | string | master username |
+| `appointments_db_app_username` | string | the application's login — token auth, never a password |
 | `appointments_db_parameter_group_name` | string | `default.<engine><version>` unless a custom group exists |
 | `appointments_db_skip_final_snapshot` | bool | `true` for dev |
 | `appointments_db_publicly_accessible` | bool | public DNS name; the SG is the real gate |
@@ -36,9 +40,14 @@ All 14 are supplied by the env layer; validation lives here, not there.
 | `appointments_db_apply_immediately` | bool | `true` in dev; `false` defers changes to the maintenance window |
 | `appointments_db_vpc_id` | string | VPC the security group is created in |
 | `appointments_db_port` | number | engine port, and the port opened in the SG |
+| `appointments_db_eks_allowed_security_group_id` | string | EKS node SG allowed inbound; `null` when EKS is off |
 
 There is **no password input, by design** — see below. There is also **no allowed-CIDR
 input**: the ingress rule derives it from `data.http.myip`.
+
+`appointments_db_eks_allowed_security_group_id` is computed in the env layer from the `eks`
+module's output and so never passes through `terraform.tfvars`. It arrives as `null` when
+`eks_enabled = false`, which is what the `count` on `mysql_from_eks` guards against.
 
 ## Outputs
 
@@ -150,21 +159,45 @@ against RDS; `appointments_hairdresser` empty means it ran but `0002_populate` d
 ### The app connects as a second, passwordless user
 
 `salonadmin` above is the master account and is only used for administration. Django logs
-in as `appointments_admin`, which has no password at all — it is created
-`IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'` and authenticates with a 15-minute IAM
-token minted per connection.
+in as `appointments_app`, which has no password at all — `mysql_user.app` creates it
+`IDENTIFIED WITH AWSAuthenticationPlugin`, and it authenticates with a 15-minute IAM token
+minted per connection.
 
-Two pieces make that work, and only one of them is in this module:
+Three pieces make that work:
 
-- `envs/dev/rds_iam_auth.tf` — the `rds-db:connect` policy, scoped to
-  `appointments_db_resource_id` and the one username, attached to the IAM principal that
-  runs the app. It lives in the env layer because it names an account-specific principal.
-- `infrastructure/sql/create_app_user.sql` — the `CREATE USER` and `GRANT`. **Not
-  Terraform.** Managing in-database objects needs the `petoju/mysql` provider, which would
-  require Terraform to reach the instance on 3306 and to read the master password at apply
-  time — putting it in state, and forcing `apply` to run inside the VPC once the DB goes
-  private. The script is checked in and idempotent instead, so a rebuild is
-  `apply` → run the file → `migrate`.
+- `mysql_user.app` and `mysql_grant.app` in this module — the `CREATE USER` and `GRANT`,
+  run through the `petoju/mysql` provider. A rebuild is one `apply`, with no script to
+  remember.
+- `envs/dev/rds_iam_auth.tf` — the `rds-db:connect` policy for a *human* principal, scoped
+  to `appointments_db_resource_id` and the one username, so a laptop can mint tokens for
+  `migrate` and `dbshell`. It lives in the env layer because it names an account-specific
+  IAM user.
+- `modules/eks/pod_identity.tf` — the same `rds-db:connect` permission for the *application*,
+  reaching the pods through their service account rather than an IAM user.
+
+### The cost of managing the user in Terraform
+
+The provider logs in as the master user, so `envs/dev/mysql_provider.tf` reads the
+RDS-managed password out of Secrets Manager — **and Terraform state now contains it.** That
+is the trade `CLAUDE.md` says not to make silently; this is the record of making it.
+
+Two further consequences:
+
+- The provider is configured from the instance's endpoint, which is unknown before the
+  instance exists. On a cold account the first run must be
+  `terraform apply -target=module.rds_db`, then a normal `apply`.
+- It connects from wherever `apply` runs, so it depends on the one-IP ingress rule above.
+  Applying from a different network fails until that rule catches up.
+
+`tls` is set to `skip-verify` rather than `true`: RDS presents a certificate signed by an
+Amazon RDS CA that is not in the system trust store, and verification fails outright. The
+connection is still encrypted. Django's own connection operates at the same level —
+`ssl_mode: REQUIRED` without CA pinning — so the two paths match. Pinning would mean
+shipping the RDS CA bundle and refreshing it when AWS rotates.
+
+`infrastructure/sql/create_app_user.sql` predates all of this and is no longer run by
+anything. Its header is still a useful runbook for reaching the instance with the mysql
+client by hand.
 
 The Django side is done: `mysqlclient` and `django-iam-dbauth` in `requirements.txt`, and
 a `DATABASES` block in `settings.py` that switches to RDS only when the `DATABASE_*`
