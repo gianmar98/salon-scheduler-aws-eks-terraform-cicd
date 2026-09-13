@@ -48,6 +48,13 @@ does not need because its database uses a password while this one authenticates 
 IAM token. The remaining placeholders are left unfilled on purpose — the real values
 carry the AWS account ID and the RDS endpoint, which this repository keeps out of git.
 
+A third file in that directory, manifests/appointments-serviceaccount.yml, is the author's
+own work rather than ACI's. The lab creates the appointments-sa service account during its
+own provisioning and never shows the student a manifest for it, so there is no ACI original
+to adapt. It exists here because this repository provisions its own cluster and must create
+that account itself, and because the EKS Pod Identity association in infrastructure/ matches
+pods by that exact name.
+
 Everything in infrastructure/ is the original work of this repository's author:
 the Terraform module and environment layout; the DynamoDB table configuration; the
 codebuild_unittest module with its IAM service role and policies, CloudWatch log group,
