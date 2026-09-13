@@ -279,7 +279,7 @@ variable "appointments_db_port" {
 }
 
 variable "appointments_db_iam_username" {
-  description = "DB user that logs in with an IAM token — must match the user in sql/create_app_user.sql"
+  description = "DB user that logs in with an IAM token — created by mysql_user.app in modules/rds"
   type        = string
 }
 

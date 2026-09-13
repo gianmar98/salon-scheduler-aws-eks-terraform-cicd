@@ -12,5 +12,9 @@ terraform {
       source  = "hashicorp/http"
       version = "~> 3.6"
     }
+    mysql = {
+      source  = "petoju/mysql" #Teaches terraform to talk to MySQL
+      version = "~> 3.0"
+    }
   }
 }

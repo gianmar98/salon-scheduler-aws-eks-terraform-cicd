@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.4"
     }
+    mysql = {
+      source  = "petoju/mysql" #Teaches terraform to talk to MySQL
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -100,14 +104,20 @@ module "application_pipeline" {
 }
 
 module "rds_db" {
-  source                                        = "../../modules/rds"
-  appointments_db_identifier                    = "${var.appointments_db_identifier}${local.env_suffix}"
-  appointments_db_allocated_storage             = var.appointments_db_allocated_storage
-  appointments_db_name                          = var.appointments_db_name
-  appointments_db_engine                        = var.appointments_db_engine
-  appointments_db_engine_version                = var.appointments_db_engine_version
-  appointments_db_instance_class                = var.appointments_db_instance_class
-  appointments_db_username                      = var.appointments_db_username
+  source                            = "../../modules/rds"
+  appointments_db_identifier        = "${var.appointments_db_identifier}${local.env_suffix}"
+  appointments_db_allocated_storage = var.appointments_db_allocated_storage
+  appointments_db_name              = var.appointments_db_name
+  appointments_db_engine            = var.appointments_db_engine
+  appointments_db_engine_version    = var.appointments_db_engine_version
+  appointments_db_instance_class    = var.appointments_db_instance_class
+  # Two different logins. The master user is created by RDS with a password it manages in
+  # Secrets Manager, and is used for admin work and migrations. The app user is created by
+  # the mysql provider with no password at all — it only accepts short-lived IAM tokens, and
+  # RDS will not let the master user work that way. ----------------------------------------
+  appointments_db_username     = var.appointments_db_username
+  appointments_db_iam_username = var.appointments_db_iam_username
+  #----------------------------------------------------------------------------------------
   appointments_db_parameter_group_name          = var.appointments_db_parameter_group_name
   appointments_db_skip_final_snapshot           = var.appointments_db_skip_final_snapshot
   appointments_db_publicly_accessible           = var.appointments_db_publicly_accessible
@@ -170,5 +180,5 @@ module "eks" {
   eks_app_service_account = var.eks_app_service_account
 
   eks_app_dynamodb_announcements_table_arn = module.announcements_dynamo_db_table.announcements_table_arn
-  eks_app_rds_db_user_arn                  = "arn:aws:rds-db:${data.aws_region.currentUser.region}:${data.aws_caller_identity.currentUser.account_id}:dbuser:${module.rds_db.appointments_db_resource_id}/${var.appointments_db_username}"
+  eks_app_rds_db_user_arn                  = "arn:aws:rds-db:${data.aws_region.currentUser.region}:${data.aws_caller_identity.currentUser.account_id}:dbuser:${module.rds_db.appointments_db_resource_id}/${var.appointments_db_iam_username}"
 }

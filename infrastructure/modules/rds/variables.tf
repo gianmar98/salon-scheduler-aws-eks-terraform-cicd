@@ -47,6 +47,11 @@ variable "appointments_db_username" {
   type        = string
 }
 
+variable "appointments_db_iam_username" {
+  description = "Database user the application logs in as with an IAM token — not the master user"
+  type        = string
+}
+
 variable "appointments_db_parameter_group_name" {
   description = "DB parameter group — the default.<engine><version> group unless a custom one exists"
   type        = string
