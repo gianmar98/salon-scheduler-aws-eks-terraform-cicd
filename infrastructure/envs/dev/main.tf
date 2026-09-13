@@ -100,21 +100,21 @@ module "application_pipeline" {
 }
 
 module "rds_db" {
-  source                               = "../../modules/rds"
-  appointments_db_identifier           = "${var.appointments_db_identifier}${local.env_suffix}"
-  appointments_db_allocated_storage    = var.appointments_db_allocated_storage
-  appointments_db_name                 = var.appointments_db_name
-  appointments_db_engine               = var.appointments_db_engine
-  appointments_db_engine_version       = var.appointments_db_engine_version
-  appointments_db_instance_class       = var.appointments_db_instance_class
-  appointments_db_username             = var.appointments_db_username
-  appointments_db_parameter_group_name = var.appointments_db_parameter_group_name
-  appointments_db_skip_final_snapshot  = var.appointments_db_skip_final_snapshot
-  appointments_db_publicly_accessible  = var.appointments_db_publicly_accessible
-  appointments_db_iam_auth_enabled     = var.appointments_db_iam_auth_enabled
-  appointments_db_apply_immediately    = var.appointments_db_apply_immediately
-  appointments_db_port                 = var.appointments_db_port
-  appointments_db_vpc_id               = data.aws_vpc.default.id
+  source                                        = "../../modules/rds"
+  appointments_db_identifier                    = "${var.appointments_db_identifier}${local.env_suffix}"
+  appointments_db_allocated_storage             = var.appointments_db_allocated_storage
+  appointments_db_name                          = var.appointments_db_name
+  appointments_db_engine                        = var.appointments_db_engine
+  appointments_db_engine_version                = var.appointments_db_engine_version
+  appointments_db_instance_class                = var.appointments_db_instance_class
+  appointments_db_username                      = var.appointments_db_username
+  appointments_db_parameter_group_name          = var.appointments_db_parameter_group_name
+  appointments_db_skip_final_snapshot           = var.appointments_db_skip_final_snapshot
+  appointments_db_publicly_accessible           = var.appointments_db_publicly_accessible
+  appointments_db_iam_auth_enabled              = var.appointments_db_iam_auth_enabled
+  appointments_db_apply_immediately             = var.appointments_db_apply_immediately
+  appointments_db_port                          = var.appointments_db_port
+  appointments_db_vpc_id                        = data.aws_vpc.default.id
   appointments_db_eks_allowed_security_group_id = try(module.eks[0].cluster_security_group_id, null)
 }
 

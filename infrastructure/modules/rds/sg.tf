@@ -32,14 +32,14 @@ resource "aws_vpc_security_group_ingress_rule" "mysql_from_client" {
 
 resource "aws_vpc_security_group_ingress_rule" "mysql_from_eks" {
   #count because eks_enabled=false makes the value null, a rule pointing nothing is an error
-  count = var.appointments_db_eks_allowed_security_group_id != null ? 1:0
+  count = var.appointments_db_eks_allowed_security_group_id != null ? 1 : 0
 
-  security_group_id = aws_security_group.rds_sg.id
+  security_group_id            = aws_security_group.rds_sg.id
   referenced_security_group_id = var.appointments_db_eks_allowed_security_group_id #reference sg ID instead of cidr block
-  from_port   = var.appointments_db_port
-  to_port     = var.appointments_db_port
-  ip_protocol = "tcp"
-  description = "Inbound access from EKS nodes"
+  from_port                    = var.appointments_db_port
+  to_port                      = var.appointments_db_port
+  ip_protocol                  = "tcp"
+  description                  = "Inbound access from EKS nodes"
 
   tags = {
     Name = "EKS node access"
