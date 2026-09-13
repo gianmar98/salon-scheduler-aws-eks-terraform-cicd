@@ -115,6 +115,7 @@ module "rds_db" {
   appointments_db_apply_immediately    = var.appointments_db_apply_immediately
   appointments_db_port                 = var.appointments_db_port
   appointments_db_vpc_id               = data.aws_vpc.default.id
+  appointments_db_eks_allowed_security_group_id = try(module.eks[0].cluster_security_group_id, null)
 }
 
 module "ecr" {

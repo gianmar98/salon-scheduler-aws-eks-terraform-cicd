@@ -82,3 +82,8 @@ variable "appointments_db_port" {
   description = "Port the engine listens on, and the port opened in the security group"
   type        = number
 }
+
+variable "appointments_db_eks_allowed_security_group_id" {
+  description = "SG allowed to reach the RDS RB (EKS SG) and null whenever EKS is disabled"
+  type        = string
+}
