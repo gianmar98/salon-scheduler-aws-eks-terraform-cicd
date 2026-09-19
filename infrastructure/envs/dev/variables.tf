@@ -374,3 +374,23 @@ variable "eks_app_service_account" {
   description = "Service account the app pods run as — must match serviceAccountName in the deployment manifest"
   type        = string
 }
+
+variable "eks_app_enabled" {
+  description = "Creates the Service and its load balancer. Turn off and apply BEFORE eks_enabled, or the provider loses the cluster address and cannot delete it"
+  type        = bool
+}
+
+variable "eks_app_service_name" {
+  description = "Name of the Kubernetes Service that fronts the app"
+  type        = string
+}
+
+variable "eks_app_selector" {
+  description = "Pod label the Service routes to — must match the deployment manifest's app label"
+  type        = string
+}
+
+variable "eks_app_container_port" {
+  description = "Port the container listens on — must match the Dockerfile's EXPOSE and CMD"
+  type        = number
+}

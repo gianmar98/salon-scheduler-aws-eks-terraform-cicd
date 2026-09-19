@@ -12,5 +12,9 @@ terraform {
       source  = "hashicorp/http"
       version = "~> 3.6"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes" #Lets Terraform own objects inside the cluster
+      version = "~> 3.2"
+    }
   }
 }

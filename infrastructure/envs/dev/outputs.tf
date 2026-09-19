@@ -65,6 +65,11 @@ output "aws_subnets" {
   value       = data.aws_subnets.eks_subnets.ids
 }
 
+output "eks_app_url" {
+  description = "Public URL of the application — the load balancer the Service provisions"
+  value       = try(module.eks[0].app_url, null)
+}
+
 output "eks_kubeconfig_command" {
   description = "Command to point kubectl at the cluster — rerun after every rebuild, the endpoint and CA change each time"
   value       = try(module.eks[0].kubeconfig_command, null)

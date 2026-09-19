@@ -92,3 +92,8 @@ variable "appointments_db_eks_allowed_security_group_id" {
   description = "SG allowed to reach the RDS RB (EKS SG) and null whenever EKS is disabled"
   type        = string
 }
+
+variable "appointments_db_eks_ingress_enabled" {
+  description = "Whether EKS exists — gates the node ingress rule. Must be known at plan time, so it cannot be derived from the SG id"
+  type        = bool
+}

@@ -1,24 +1,36 @@
-#HOW TO REACH IT
-
-
-
-# Make 1 stable entry point. Send anything arriving on port 80 -> 8088 inside whichever
-#   pods are live right now. And ask for AWS for a public LB in front of it
-
-# give pods an address it can use
-
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: appointments-deployment
-  name: appointments-service
-spec:
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 8088 #8088 is from Docker File/Container
-  selector:
-    app: appointments-deployment
-  type: LoadBalancer
-
+# NOT APPLIED. Kept as the ACI Lab 7 deliverable; Terraform builds this instead.
+#
+# WHAT IT DESCRIBES
+# Make one stable entry point. Send anything arriving on port 80 -> 8088 inside whichever
+# pods are live right now, and ask AWS for a public load balancer in front of it.
+#
+# WHY IT IS COMMENTED OUT
+# `type: LoadBalancer` makes Kubernetes provision a real AWS load balancer — a billable
+# resource that Terraform did not create and therefore does not track. Applied with
+# kubectl, it survives `eks_enabled = false`: the cluster goes, the load balancer stays,
+# billing, with nothing pointing back to what made it.
+#
+# The same Service is declared in infrastructure/modules/eks/k8s_service.tf as a
+# kubernetes_service_v1 resource. Terraform owns it there, so destroying the cluster
+# deletes the Service first and Kubernetes releases the load balancer on the way out.
+#
+# Applying this file would create a SECOND Service and a second load balancer, outside
+# Terraform's knowledge. That is the orphan this whole arrangement exists to prevent.
+#
+# The Deployment and ServiceAccount next to this file are still applied with kubectl, on
+# purpose: they create nothing outside the cluster, so they cannot be orphaned.
+#
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   labels:
+#     app: appointments-deployment
+#   name: appointments-service
+# spec:
+#   ports:
+#   - port: 80
+#     protocol: TCP
+#     targetPort: 8088 #8088 is from Docker File/Container
+#   selector:
+#     app: appointments-deployment
+#   type: LoadBalancer

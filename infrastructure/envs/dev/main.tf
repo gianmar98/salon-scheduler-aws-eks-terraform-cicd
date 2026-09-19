@@ -12,6 +12,10 @@ terraform {
       source  = "petoju/mysql" #Teaches terraform to talk to MySQL
       version = "~> 3.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes" #Lets Terraform own objects inside the cluster
+      version = "~> 3.2"
+    }
   }
 }
 
@@ -126,6 +130,7 @@ module "rds_db" {
   appointments_db_port                          = var.appointments_db_port
   appointments_db_vpc_id                        = data.aws_vpc.default.id
   appointments_db_eks_allowed_security_group_id = try(module.eks[0].cluster_security_group_id, null)
+  appointments_db_eks_ingress_enabled           = var.eks_enabled
 }
 
 module "ecr" {
@@ -178,6 +183,12 @@ module "eks" {
   #Pod Identity
   eks_app_namespace       = var.eks_app_namespace
   eks_app_service_account = var.eks_app_service_account
+
+  #Service
+  eks_app_enabled        = var.eks_app_enabled
+  eks_app_service_name   = var.eks_app_service_name
+  eks_app_selector       = var.eks_app_selector
+  eks_app_container_port = var.eks_app_container_port
 
   eks_app_dynamodb_announcements_table_arn = module.announcements_dynamo_db_table.announcements_table_arn
   eks_app_rds_db_user_arn                  = "arn:aws:rds-db:${data.aws_region.currentUser.region}:${data.aws_caller_identity.currentUser.account_id}:dbuser:${module.rds_db.appointments_db_resource_id}/${var.appointments_db_iam_username}"
