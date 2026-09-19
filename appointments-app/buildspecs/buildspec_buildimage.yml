@@ -50,6 +50,7 @@ phases:
       - docker tag appointments-app-container:latest $ECR_REPO_URL:latest # Insert a commands to add "latest" tag to the image.
       - docker tag appointments-app-container:latest $ECR_REPO_URL:staging-test-image # Insert a command to add "staging-test-image" tag to the image.
       - docker tag appointments-app-container:latest $ECR_REPO_URL:${CODEBUILD_RESOLVED_SOURCE_VERSION} # Dynamic tag: the full commit SHA. The lab says CodeCommit; this repo's source is GitHub, and the variable resolves the same way.
+      - docker tag appointments-app-container:latest $ECR_REPO_URL:background-color-updated-to-orange
       - echo Build completed on `date` # This command adds the date to the logs.
 
   post_build: # This phase will be used to push the image to Amazon ECR.

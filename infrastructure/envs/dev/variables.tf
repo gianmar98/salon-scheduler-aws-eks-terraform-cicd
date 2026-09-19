@@ -404,3 +404,8 @@ variable "eks_app_image_tag" {
   description = "Image tag to run. `latest` never changes, so Terraform will not redeploy on a new push; a commit SHA will"
   type        = string
 }
+
+variable "eks_app_change_cause" {
+  description = "What `kubectl rollout history` shows as CHANGE-CAUSE for this revision"
+  type        = string
+}

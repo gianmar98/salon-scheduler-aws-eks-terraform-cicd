@@ -145,3 +145,8 @@ variable "eks_app_db_name" {
   description = "Database Django connects to"
   type        = string
 }
+
+variable "eks_app_change_cause" {
+  description = "What `kubectl rollout history` shows as CHANGE-CAUSE for this revision"
+  type        = string
+}

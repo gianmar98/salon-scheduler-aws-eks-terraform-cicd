@@ -10,6 +10,10 @@ resource "kubernetes_deployment_v1" "appointments" {
     name      = var.eks_app_selector
     namespace = var.eks_app_namespace #same folder as service (default)
 
+    annotations = {
+      "kubernetes.io/change-cause" = var.eks_app_change_cause
+    }
+
     labels = {
       app = var.eks_app_selector #Tag on deployment itself
     }
