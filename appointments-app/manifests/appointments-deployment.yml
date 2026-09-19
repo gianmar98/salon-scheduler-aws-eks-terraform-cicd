@@ -1,38 +1,55 @@
-# WHAT TO RUN
-# Keeping 2 copies of ECR image running. Give each 5 env vars, run them
-#   under the identity appointments-sa. Always re pull the image (each running copy is a pod and replaced with new IP)
-
-#starts and babysits pods
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: appointments-deployment
-  name: appointments-deployment
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: appointments-deployment
-  template:
-    metadata:
-      labels:
-        app: appointments-deployment
-    spec:
-      serviceAccountName: appointments-sa #links pod to IAM role
-      containers:
-      - image: <INSERT_CONTAINER_IMAGE_URI>
-        name: webserver
-        imagePullPolicy: Always
-        env:
-          - name: AWS_DEFAULT_REGION
-            value: <INSERT_AWS_REGION>
-          - name: DATABASE_HOST
-            value: <INSERT_RDS_ENDPOINT_NAME>
-          - name: DATABASE_USER
-            value: <INSERT_DATABASE_USER>
-          - name: DATABASE_DB_NAME
-            value: <INSERT_DB_NAME>
-          - name: LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN
-            value: "1"
+# NOT APPLIED. Kept as the ACI Lab 7 deliverable; Terraform builds this instead.
+#
+# WHAT IT DESCRIBES
+# Keep 2 copies of the ECR image running. Give each 5 env vars, run them under the
+# identity appointments-sa, and always re-pull the image. Each running copy is a pod, and
+# a replaced pod gets a new IP.
+#
+# WHY IT IS COMMENTED OUT
+# Every value below marked <INSERT_...> is an output of the Terraform run next door: the
+# image URI holds the AWS account ID, and the database host changes each time RDS is
+# rebuilt. Applied with kubectl, this file needs a human to paste both in after every
+# rebuild, and committing the filled-in version would put the account ID in git.
+#
+# The same Deployment is declared in infrastructure/modules/eks/k8s_deployment.tf as a
+# kubernetes_deployment_v1 resource, wired to module.ecr and module.rds_db outputs. The
+# values are correct by construction and survive a teardown.
+#
+# Applying this file would create a SECOND Deployment under the same name and fight the
+# Terraform-managed one.
+#
+# appointments-serviceaccount.yml next to this file is still applied with kubectl, on
+# purpose: it creates nothing outside the cluster and holds no generated values.
+#
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   labels:
+#     app: appointments-deployment
+#   name: appointments-deployment
+# spec:
+#   replicas: 2
+#   selector:
+#     matchLabels:
+#       app: appointments-deployment
+#   template:
+#     metadata:
+#       labels:
+#         app: appointments-deployment
+#     spec:
+#       serviceAccountName: appointments-sa #links pod to IAM role
+#       containers:
+#       - image: <INSERT_CONTAINER_IMAGE_URI>
+#         name: webserver
+#         imagePullPolicy: Always
+#         env:
+#           - name: AWS_DEFAULT_REGION
+#             value: <INSERT_AWS_REGION>
+#           - name: DATABASE_HOST
+#             value: <INSERT_RDS_ENDPOINT_NAME>
+#           - name: DATABASE_USER
+#             value: <INSERT_DATABASE_USER>
+#           - name: DATABASE_DB_NAME
+#             value: <INSERT_DB_NAME>
+#           - name: LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN
+#             value: "1"

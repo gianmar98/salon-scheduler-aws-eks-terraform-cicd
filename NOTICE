@@ -48,6 +48,18 @@ does not need because its database uses a password while this one authenticates 
 IAM token. The remaining placeholders are left unfilled on purpose — the real values
 carry the AWS account ID and the RDS endpoint, which this repository keeps out of git.
 
+Both files are now commented out and applied by neither kubectl nor Terraform. They are
+retained as the Lab 7 deliverable, each with a header recording what it describes and
+which Terraform resource superseded it. The replacements —
+infrastructure/modules/eks/k8s_service.tf and k8s_deployment.tf — are the author's own
+work: they express the same two Kubernetes objects through the hashicorp/kubernetes
+provider, with the placeholder values supplied from the ecr and rds modules' outputs
+instead of by hand. The Service moved because type LoadBalancer provisions a billable AWS
+load balancer that kubectl leaves orphaned when the cluster is destroyed; the Deployment
+moved because its values are outputs of the same Terraform run. ACI supplied no Terraform
+for either, so no ACI content carried across the boundary — only the field values the lab
+had already specified, which appear identically in the commented manifests above.
+
 A third file in that directory, manifests/appointments-serviceaccount.yml, is the author's
 own work rather than ACI's. The lab creates the appointments-sa service account during its
 own provisioning and never shows the student a manifest for it, so there is no ACI original

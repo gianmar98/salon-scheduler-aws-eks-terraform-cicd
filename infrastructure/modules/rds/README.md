@@ -21,7 +21,7 @@ left out.
 
 ## Inputs
 
-All 16 are supplied by the env layer; validation lives here, not there.
+All 17 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -32,7 +32,7 @@ All 16 are supplied by the env layer; validation lives here, not there.
 | `appointments_db_engine_version` | string | must match the parameter group's family |
 | `appointments_db_instance_class` | string | |
 | `appointments_db_username` | string | master username |
-| `appointments_db_app_username` | string | the application's login — token auth, never a password |
+| `appointments_db_iam_username` | string | the application's login — token auth, never a password; also passed to the `eks` module as `eks_app_db_user` |
 | `appointments_db_parameter_group_name` | string | `default.<engine><version>` unless a custom group exists |
 | `appointments_db_skip_final_snapshot` | bool | `true` for dev |
 | `appointments_db_publicly_accessible` | bool | public DNS name; the SG is the real gate |
@@ -41,13 +41,22 @@ All 16 are supplied by the env layer; validation lives here, not there.
 | `appointments_db_vpc_id` | string | VPC the security group is created in |
 | `appointments_db_port` | number | engine port, and the port opened in the SG |
 | `appointments_db_eks_allowed_security_group_id` | string | EKS node SG allowed inbound; `null` when EKS is off |
+| `appointments_db_eks_ingress_enabled` | bool | whether that rule is created — `var.eks_enabled`, passed straight through |
 
 There is **no password input, by design** — see below. There is also **no allowed-CIDR
 input**: the ingress rule derives it from `data.http.myip`.
 
 `appointments_db_eks_allowed_security_group_id` is computed in the env layer from the `eks`
 module's output and so never passes through `terraform.tfvars`. It arrives as `null` when
-`eks_enabled = false`, which is what the `count` on `mysql_from_eks` guards against.
+`eks_enabled = false`.
+
+**`appointments_db_eks_ingress_enabled` exists because `count` has to be known at plan
+time.** The obvious version of that `count` tests the SG id for `null` — and on a cold
+cluster the id is not `null`, it is *unknown*, because the cluster is being created in the
+same run. The comparison then yields unknown too, and the apply dies with "The `count`
+value depends on resource attributes that cannot be determined until apply." A bool read
+from `terraform.tfvars` carries no such uncertainty. The two inputs have to stay in sync:
+the flag decides whether the rule exists, the id is what it points at.
 
 ## Outputs
 
@@ -204,3 +213,7 @@ a `DATABASES` block in `settings.py` that switches to RDS only when the `DATABAS
 variables are set, so the test suite and CI stay on SQLite. See
 `appointments-app/COMMANDS.md` for the exact commands, including the mandatory
 `LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1`.
+
+In the cluster those variables are set by `modules/eks/k8s_deployment.tf`, which reads
+`appointments_db_address` from this module's outputs. A rebuilt instance gets a new
+endpoint and the pods pick it up on the next `apply` — there is no manifest to edit.

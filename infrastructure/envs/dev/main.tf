@@ -184,12 +184,22 @@ module "eks" {
   eks_app_namespace       = var.eks_app_namespace
   eks_app_service_account = var.eks_app_service_account
 
-  #Service
+  #Service (LB)
   eks_app_enabled        = var.eks_app_enabled
   eks_app_service_name   = var.eks_app_service_name
   eks_app_selector       = var.eks_app_selector
   eks_app_container_port = var.eks_app_container_port
 
+  #Deployment
+  eks_app_replicas   = var.eks_app_replicas
+  eks_app_image_uri  = module.ecr.appointments_ecr_repository_url
+  eks_app_image_tag  = var.eks_app_image_tag
+  eks_app_aws_region = data.aws_region.currentUser.region
+  eks_app_db_host    = module.rds_db.appointments_db_address
+  eks_app_db_user    = var.appointments_db_iam_username
+  eks_app_db_name    = var.appointments_db_name
+
+  #External
   eks_app_dynamodb_announcements_table_arn = module.announcements_dynamo_db_table.announcements_table_arn
   eks_app_rds_db_user_arn                  = "arn:aws:rds-db:${data.aws_region.currentUser.region}:${data.aws_caller_identity.currentUser.account_id}:dbuser:${module.rds_db.appointments_db_resource_id}/${var.appointments_db_iam_username}"
 }

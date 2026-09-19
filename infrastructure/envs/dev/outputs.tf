@@ -70,7 +70,7 @@ output "eks_app_url" {
   value       = try(module.eks[0].app_url, null)
 }
 
-output "eks_kubeconfig_command" {
+output "eks_kubeconfig_cluster_into_laptop_command" {
   description = "Command to point kubectl at the cluster — rerun after every rebuild, the endpoint and CA change each time"
   value       = try(module.eks[0].kubeconfig_command, null)
 }

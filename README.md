@@ -23,10 +23,12 @@ provided by the Amazon Cloud Institute, everything under `infrastructure/` is or
 | **Images** | built by CodeBuild and pushed to ECR as `latest`, `staging-test-image`, and the commit SHA |
 | **Reports** | JUnit and Cobertura published to CodeBuild report groups on every run |
 | **Cluster** | EKS with a two-node spot node group, behind an `eks_enabled` switch so it can be destroyed when idle |
+| **Deploy** | the app's Kubernetes Service and Deployment are Terraform resources, so `terraform apply` puts the ECR image on the cluster and prints its URL |
 | **State** | S3 remote backend with lockfile |
 
-Not built yet: any deploy stage. The image reaches ECR and stops there, and nothing runs
-on the cluster — it exists, but the pipeline does not know about it.
+Not built yet: a pipeline deploy stage. The image reaches ECR and stops there — the
+pipeline does not know the cluster exists, and deploys are run by hand with
+`terraform apply`.
 
 **The cluster is the expensive part.** The EKS control plane is $0.10/hour flat — about
 $73/month — regardless of load, with no free tier and no pause. `eks_enabled = false` in
@@ -118,7 +120,7 @@ there, not with the `.tf` files:
 - [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md) — the three stages
 - [`modules/dynamodb`](infrastructure/modules/dynamodb/README.md) — announcements table
 - [`modules/ecr`](infrastructure/modules/ecr/README.md) — image repository
-- [`modules/eks`](infrastructure/modules/eks/README.md) — cluster, node group, and the `eks_enabled` cost switch
+- [`modules/eks`](infrastructure/modules/eks/README.md) — cluster, node group, the app's Service and Deployment, and the `eks_enabled` cost switch
 - [`modules/rds`](infrastructure/modules/rds/README.md) — MySQL instance and IAM auth
 
 The unit-test CodeBuild stack was built in the AWS console first and adopted into

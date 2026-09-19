@@ -1,7 +1,9 @@
 # `eks` module
 
 A Kubernetes cluster and one managed node group, plus the two IAM roles neither can start
-without. Nothing is deployed to it yet — the pipeline still stops at ECR.
+without, plus the two Kubernetes objects that run the application on it. The pipeline
+still stops at ECR — the image is deployed from here, by `terraform apply`, not by a
+pipeline stage.
 
 ## Provenance
 
@@ -39,8 +41,17 @@ Two consequences of that `count`:
 - **It had to be there before the first apply.** Adding `count` later changes every
   resource address in state and needs a `terraform state mv` per resource.
 - **Anything referencing this module needs `try(module.eks[0].x, null)`**, or a `false`
-  apply fails on an undefined reference. Nothing references it today because `outputs.tf`
-  is still empty — that changes the moment outputs are added.
+  apply fails on an undefined reference. `envs/dev/outputs.tf`, `kubernetes_provider.tf`,
+  and the `rds` module's EKS ingress rule all reference it, and all three use `try`.
+
+`eks_app_enabled` is a **second** switch, gating only the Kubernetes objects. It exists
+because `kubernetes_provider.tf` reads the cluster address from this module: turning
+`eks_enabled` off removes that address, and Terraform is then left with a Service and a
+Deployment to delete and nowhere to send the request — it fails against `localhost`.
+Shutdown is therefore two applies, `eks_app_enabled = false` first. Bring-up on a cold
+cluster is the mirror: both flags true in one run fails at plan with "provider
+configuration depends on values that cannot be determined until apply", the same trap as
+the `mysql` provider in `modules/rds`.
 
 Re-enabling gives a **new endpoint and a new certificate**, so
 `aws eks update-kubeconfig` has to be re-run every time. See
@@ -59,9 +70,35 @@ Re-enabling gives a **new endpoint and a new certificate**, so
 | `aws_iam_role.eks_app_role` | what the application pods assume |
 | `aws_eks_pod_identity_association.appointments_app` | binds a Kubernetes service account to that role |
 | `aws_iam_policy.eks_app_base_policy` + 1 attachment | what the application may do: scan the announcements table, open a database connection |
+| `kubernetes_service_v1.appointments` | the load balancer and the stable entry point in front of the pods |
+| `kubernetes_deployment_v1.appointments` | the pods themselves — image, replica count, environment |
 
-Thirteen objects on a first apply — the three node policy attachments come from one
-`for_each`.
+Fifteen objects on a first apply — the three node policy attachments come from one
+`for_each`, and the last two are Kubernetes objects rather than AWS ones.
+
+## Two Kubernetes objects live here, for two different reasons
+
+Everything else in `appointments-app/manifests/` is applied with `kubectl`. These two are
+not, and the reasoning differs:
+
+- **`kubernetes_service_v1`** is here because `type = LoadBalancer` makes Kubernetes ask
+  AWS for a classic load balancer — a billable resource Terraform did not create and so
+  would not destroy. Applied with `kubectl`, it outlives `eks_enabled = false` as an
+  orphan with no owner. In state, destroying the cluster deletes the Service first and
+  Kubernetes releases the load balancer on the way out.
+- **`kubernetes_deployment_v1`** creates nothing outside the cluster and cannot be
+  orphaned. It is here because its values *are* this run's outputs: `eks_app_image_uri`
+  from `module.ecr`, `eks_app_db_host` from `module.rds_db`. As a manifest it carried
+  `<INSERT_…>` placeholders that a human filled in after every rebuild, and the filled-in
+  version would have put the AWS account ID in git.
+
+`appointments-serviceaccount.yml` is still `kubectl`'s: it holds no generated values and
+creates nothing outside the cluster. Both YAML manifests it sits beside are commented out
+with a header explaining which Terraform resource replaced them.
+
+`eks_app_selector` is the single value three places must agree on — the Service's
+selector, the Deployment's `match_labels`, and the pod template's label. A mismatch is not
+an error: the Service simply has no backends and the URL times out.
 
 ## The two IAM roles are not interchangeable
 
@@ -110,8 +147,10 @@ runtime, in the pod.
 The association stores the service account as a **string** and never resolves it. Terraform
 applies successfully whether or not that account exists in the cluster, and a typo is not
 an error anywhere — the pod simply receives no credentials. `eks_app_service_account` must
-match `serviceAccountName` in `appointments-app/manifests/appointments-deployment.yml`
-exactly, and the ServiceAccount object itself is applied with `kubectl`, not Terraform.
+match `service_account_name` in `k8s_deployment.tf` and the `name` in
+`appointments-app/manifests/appointments-serviceaccount.yml` exactly. Both of those read
+the same variable or the same literal; the ServiceAccount object itself is still applied
+with `kubectl`, not Terraform.
 
 ### The `rds-db:connect` ARN is not the instance ARN
 
@@ -190,7 +229,7 @@ the architecture matches. Keep every entry in the same family.
 
 ## Inputs
 
-All 14 are supplied by the env layer; validation lives here, not there.
+All 25 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -204,8 +243,19 @@ All 14 are supplied by the env layer; validation lives here, not there.
 | `eks_node_desired_size` | number | nodes now |
 | `eks_node_min_size` | number | lower bound |
 | `eks_node_max_size` | number | upper bound |
-| `eks_app_namespace` | string | namespace the app pods run in |
-| `eks_app_service_account` | string | must match `serviceAccountName` in the deployment manifest |
+| `eks_app_namespace` | string | namespace both Kubernetes objects are created in |
+| `eks_app_service_account` | string | must match the ServiceAccount manifest's `name` |
+| `eks_app_enabled` | bool | gates the Service and Deployment; turn off and apply **before** `eks_enabled` |
+| `eks_app_service_name` | string | the Service's name in the cluster |
+| `eks_app_selector` | string | the pod label — Service selector, Deployment selector, and pod template all use it |
+| `eks_app_container_port` | number | must match the Dockerfile's `EXPOSE` and `CMD` |
+| `eks_app_replicas` | number | pod copies to keep running |
+| `eks_app_image_uri` | string | computed in the env layer from the `ecr` module's output — keeps the account ID derived |
+| `eks_app_image_tag` | string | `latest` never changes, so Terraform will not redeploy on a new push; a commit SHA will |
+| `eks_app_aws_region` | string | computed in the env layer; boto3 reads it for DynamoDB |
+| `eks_app_db_host` | string | computed in the env layer from the `rds` module's output |
+| `eks_app_db_user` | string | the IAM-authenticated MySQL user `modules/rds` creates |
+| `eks_app_db_name` | string | database Django connects to |
 | `eks_app_dynamodb_announcements_table_arn` | string | computed in the env layer from the `dynamodb` module's output |
 | `eks_app_rds_db_user_arn` | string | computed in the env layer; `rds-db` namespace, not `rds` |
 
@@ -214,12 +264,28 @@ through `envs/dev/variables.tf` or `terraform.tfvars` — the same shape as
 `appointments_db_vpc_id` on the `rds` module. The two ARN inputs are computed the same way,
 from other modules' outputs, and are likewise absent from `terraform.tfvars`.
 
+Four of the Deployment's inputs are computed the same way — `eks_app_image_uri`,
+`eks_app_aws_region`, `eks_app_db_host`, and `eks_app_db_user`. That is the point of
+moving the Deployment into Terraform: the two values that used to be pasted in by hand
+after every rebuild are now derived, and the account ID never reaches a committed file.
+Only `eks_app_replicas` and `eks_app_image_tag` are real `terraform.tfvars` dials.
+
 With no autoscaler installed, `min`/`max` are guardrails only: `desired` never changes on
 its own.
 
 ## Outputs
 
-Two.
+Five.
+
+`cluster_endpoint` and `cluster_certificate_authority_data` exist for one consumer:
+`envs/dev/kubernetes_provider.tf`. They are the API address and the CA cert to verify it
+against — the same two values `aws eks update-kubeconfig` writes into `~/.kube/config`.
+Both change on every rebuild, which is why nothing caches them.
+
+`app_url` is the load balancer's hostname with `http://` in front, read off the Service's
+status. The Service sets `wait_for_load_balancer = true` so apply blocks until AWS reports
+an endpoint and this is never empty. It is `http`, not `https` — a classic load balancer
+with no certificate.
 
 `cluster_security_group_id` is the security group EKS creates and attaches to the managed
 nodes. `modules/rds` takes it as an allowed inbound source, so pods can reach the database
@@ -271,10 +337,19 @@ Two things follow:
 - **No `aws_eks_addon` resources.** `bootstrap_self_managed_addons` defaults to `true`, so
   EKS installs the VPC CNI, CoreDNS, and kube-proxy itself, outside Terraform. They work;
   their versions just cannot be pinned or upgraded from here.
-- **Pods cannot reach RDS.** `modules/rds` opens its security group to a single resolved
-  IP. A deploy stage will need an ingress rule from the node security group.
-- **No OIDC provider, no IRSA, no deploy stage, no Kubernetes manifests.** Out of scope
-  while nothing runs on the cluster.
+- **No pipeline deploy stage.** The application is deployed by `terraform apply` from a
+  laptop, not by CodePipeline. With `eks_app_image_tag = "latest"` a new image pushed to
+  ECR produces no Terraform diff, so picking it up is `kubectl rollout restart deployment
+  appointments-deployment`. Setting the tag to a commit SHA makes the deploy explicit but
+  moves the bump to a hand edit.
+- **No readiness probe on the Deployment.** A pod counts as ready the moment the container
+  starts, so during a rolling update the load balancer can route to a pod before Django is
+  serving. Tolerable here because the health check is TCP and `runserver` binds quickly.
+- **No resource requests or limits.** Two pods on two `t3.small` nodes with nothing else
+  scheduled, so the scheduler has no packing decision to get wrong.
+- **`runserver` in production.** Django's development server, from the ACI Dockerfile's
+  `CMD`. Single-threaded and explicitly not for production use; gunicorn is the fix.
+- **No OIDC provider, no IRSA.** Pod Identity covers what the application needs.
 - **`storage_encrypted` and secrets encryption are untouched.** EKS encrypts etcd with an
   AWS-managed key by default; a customer-managed KMS key is the upgrade, at ~$1/month.
 
@@ -297,3 +372,13 @@ Two things follow:
   Connect button has nothing to attach to. Adding that ARN to the `for_each` list fixes it
   and replaces the nodes.
 - **`eksctl get cluster` reports `EKSCTL CREATED: False`.** Correct — Terraform built it.
+- **Terraform will not adopt an object `kubectl` already created.** A Deployment or
+  Service of the same name in the same namespace makes the apply fail with `already
+  exists`; Terraform has no state for it and will not take it over. Delete it first
+  (`kubectl delete deployment appointments-deployment`) or `terraform import` it.
+- **A stale kubeconfig looks like a dead cluster.** After a rebuild, `kubectl` reports
+  `no such host` against the previous endpoint. That is the local config, not the cluster
+  — re-run the `eks_kubeconfig_command` output.
+- **The Service's `selector` is a plain map; the Deployment's is a `selector` block with
+  `match_labels`.** The same idea with two different syntaxes, and pasting one into the
+  other validates as far as HCL and fails in the provider.

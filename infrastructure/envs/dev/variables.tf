@@ -394,3 +394,13 @@ variable "eks_app_container_port" {
   description = "Port the container listens on — must match the Dockerfile's EXPOSE and CMD"
   type        = number
 }
+
+variable "eks_app_replicas" {
+  description = "Pod copies to keep running"
+  type        = number
+}
+
+variable "eks_app_image_tag" {
+  description = "Image tag to run. `latest` never changes, so Terraform will not redeploy on a new push; a commit SHA will"
+  type        = string
+}

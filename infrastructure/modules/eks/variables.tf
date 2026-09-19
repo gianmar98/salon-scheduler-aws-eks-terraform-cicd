@@ -110,3 +110,38 @@ variable "eks_app_rds_db_user_arn" {
   type        = string
 }
 
+#DEPLOYMENT
+variable "eks_app_replicas" {
+  description = "Pod copies to keep running"
+  type        = number
+}
+
+variable "eks_app_image_uri" {
+  description = "ECR repository URL, no tag — comes from the ecr module so the account ID stays derived"
+  type        = string
+}
+
+variable "eks_app_image_tag" {
+  description = "Image tag to run. `latest` never changes, so Terraform will not redeploy on a new push; a commit SHA will"
+  type        = string
+}
+
+variable "eks_app_aws_region" {
+  description = "Region the pods call AWS in — boto3 reads it for DynamoDB"
+  type        = string
+}
+
+variable "eks_app_db_host" {
+  description = "RDS endpoint the app connects to"
+  type        = string
+}
+
+variable "eks_app_db_user" {
+  description = "IAM-authenticated MySQL user — must match the user created in modules/rds"
+  type        = string
+}
+
+variable "eks_app_db_name" {
+  description = "Database Django connects to"
+  type        = string
+}

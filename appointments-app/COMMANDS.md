@@ -290,9 +290,10 @@ A push to `main` touching `appointments-app/` runs three pipeline stages:
 | Build | unzips it, runs pylint and the Django tests |
 | BuildImage | unzips it, runs `docker build`, applies three tags, pushes to ECR |
 
-Then the image sits in ECR. **Nothing deploys it** — there is no EKS and no deploy stage
-yet, so pulling it here is the only way to run what the pipeline produced. When a cluster
-exists it will pull the same image the same way; these commands stand in for it.
+Then the image sits in ECR. **The pipeline does not deploy it** — there is no deploy
+stage. The cluster pulls the same image when `terraform apply` creates the Deployment, so
+these commands are the local stand-in for what the nodes do: useful for reproducing a
+failure without a cluster running.
 
 ### 1. Log in to the registry
 
@@ -465,8 +466,9 @@ the node group existed.
 
 Both can look healthy while the app still gets no credentials. The association stores the
 service account as a plain string and never checks that it exists, so a name that does not
-match `serviceAccountName` in `manifests/appointments-deployment.yml` fails silently — no
-error from AWS, no error from Kubernetes, just a pod with no permissions.
+match `service_account_name` in `infrastructure/modules/eks/k8s_deployment.tf` — or the
+`name` in `manifests/appointments-serviceaccount.yml` — fails silently: no error from AWS,
+no error from Kubernetes, just a pod with no permissions.
 
 To confirm end to end, exec into a running pod and check which identity it picked up:
 
