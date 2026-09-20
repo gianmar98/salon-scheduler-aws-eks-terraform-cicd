@@ -481,3 +481,101 @@ kubectl exec deploy/appointments-deployment -- \
 
 The ARN should contain `salon-eks-cluster-dev-app-role`. If it names the *node* role
 instead, the badge did not match and the pod fell back to the node's own permissions.
+
+## Ship a new version of the application
+
+Three files change per version, and none of them is a manifest — the Deployment is
+Terraform's. `manifests/appointments-deployment.yml` is commented out and applied by
+nothing; editing it changes no running resource. The background colour is the example;
+any code change has the same shape. Pick one tag name first and use that same string in
+all three files.
+
+**1. The application code.** `appointments/templates/appointments/base.html`, the `<style>`
+block in `<head>`:
+
+```html
+        body { background-color:cadetblue; }
+```
+
+**2. The image tag.** `buildspecs/buildspec_buildimage.yml`, the last `docker tag` line of
+the `build` phase — **rename it, do not add a second one**:
+
+```yaml
+      - docker tag appointments-app-container:latest $ECR_REPO_URL:background-color-updated-to-cadetblue
+```
+
+Each build pushes every tag it names onto the image it just built, so an accumulating list
+would drag the old names forward onto new code and destroy the thing that makes rollback
+work. The three lines above it — `latest`, `staging-test-image`, and the commit SHA — stay
+as they are.
+
+**3. What the cluster runs.** `../infrastructure/envs/dev/terraform.tfvars`, two variables,
+and they always move together:
+
+```hcl
+eks_app_image_tag    = "background-color-updated-to-cadetblue"
+eks_app_change_cause = "Update the application background color to cadetblue"
+```
+
+`eks_app_image_tag` is the tag half of the image reference the pod spec carries — the
+registry and repository half comes from `module.ecr`, so this string is the only part of
+the address set by hand, and changing it is what creates a new revision.
+`eks_app_change_cause` is the `kubernetes.io/change-cause` annotation, which is what makes
+that revision legible in `kubectl rollout history` instead of showing `<none>`.
+
+```bash
+git add -A && git commit -m "Change the background colour" && git push
+```
+
+**Wait for the BuildImage stage to succeed before applying.** The push is what puts the tag
+in ECR; apply before it lands and the new pod sits in `ImagePullBackOff` with `not found`,
+and Terraform blocks on `wait_for_rollout` until it times out. The old pods keep serving
+throughout, so the failure is recoverable — re-run the apply once the image exists.
+
+```bash
+terraform -chdir=../infrastructure/envs/dev apply
+```
+
+Pushing to ECR never touches the cluster. Nothing watches the registry; the pods change
+because `apply` rewrites the image string in the pod spec, and that is the only trigger.
+
+### Never point `eks_app_image_tag` at `latest` for a version you might roll back to
+
+Every build moves `latest` and `staging-test-image` onto the newest image, and
+`image_pull_policy = "Always"` means a pod re-resolves the tag on every start. A revision
+recorded against `latest` therefore does not reproduce — rolling back to it pulls whatever
+`latest` means today. Named tags and the commit SHA are never reassigned, so only those
+roll back to the code they were built from.
+
+## Roll back to an earlier revision
+
+```bash
+kubectl rollout history deployment/appointments-deployment
+```
+
+Prints one line per revision with the `kubernetes.io/change-cause` annotation as
+CHANGE-CAUSE, which is why that annotation is a declared Terraform variable — set it with
+`kubectl annotate` instead and the next apply strips it. Add `--revision=N` to see that
+revision's full pod template, including which image it ran.
+
+```bash
+kubectl rollout undo deployment/appointments-deployment --to-revision=2
+```
+
+**Re-read the history immediately before every undo.** Rolling back does not restore a
+revision number, it retires it and appends the old pod template as a *new* revision at the
+top. Roll back to 2 and 2 stops existing; the same command run twice fails with `unable to
+find specified revision 2`.
+
+This is a Kubernetes rollback, not a git one. It changes which ReplicaSet the Deployment
+points at and nothing else — the source, the commits, and Terraform's state all still name
+the version you rolled away from.
+
+```bash
+terraform -chdir=../infrastructure/envs/dev apply
+```
+
+So after the undo, set `eks_app_image_tag` and `eks_app_change_cause` back to the version
+you rolled to and apply. Without it the cluster and state disagree, and the next apply for
+any unrelated reason silently undoes the rollback. Expect no pod churn: Terraform is
+catching up to where `kubectl` already put the cluster.

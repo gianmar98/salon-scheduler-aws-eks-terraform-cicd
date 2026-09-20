@@ -229,7 +229,7 @@ the architecture matches. Keep every entry in the same family.
 
 ## Inputs
 
-All 25 are supplied by the env layer; validation lives here, not there.
+All 26 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -252,6 +252,7 @@ All 25 are supplied by the env layer; validation lives here, not there.
 | `eks_app_replicas` | number | pod copies to keep running |
 | `eks_app_image_uri` | string | computed in the env layer from the `ecr` module's output — keeps the account ID derived |
 | `eks_app_image_tag` | string | `latest` never changes, so Terraform will not redeploy on a new push; a commit SHA will |
+| `eks_app_change_cause` | string | the `kubernetes.io/change-cause` annotation — what `kubectl rollout history` prints for the revision |
 | `eks_app_aws_region` | string | computed in the env layer; boto3 reads it for DynamoDB |
 | `eks_app_db_host` | string | computed in the env layer from the `rds` module's output |
 | `eks_app_db_user` | string | the IAM-authenticated MySQL user `modules/rds` creates |
@@ -268,7 +269,11 @@ Four of the Deployment's inputs are computed the same way — `eks_app_image_uri
 `eks_app_aws_region`, `eks_app_db_host`, and `eks_app_db_user`. That is the point of
 moving the Deployment into Terraform: the two values that used to be pasted in by hand
 after every rebuild are now derived, and the account ID never reaches a committed file.
-Only `eks_app_replicas` and `eks_app_image_tag` are real `terraform.tfvars` dials.
+Only `eks_app_replicas`, `eks_app_image_tag`, and `eks_app_change_cause` are real
+`terraform.tfvars` dials. The last two move together: the tag is what changes the pod
+template and therefore creates a revision, and the change-cause is what labels it in
+`kubectl rollout history`. It is a declared input rather than a `kubectl annotate` call
+because Terraform strips annotations it does not manage on the next apply.
 
 With no autoscaler installed, `min`/`max` are guardrails only: `desired` never changes on
 its own.
