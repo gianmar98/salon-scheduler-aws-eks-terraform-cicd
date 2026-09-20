@@ -17,8 +17,8 @@
 # Applying this file would create a SECOND Service and a second load balancer, outside
 # Terraform's knowledge. That is the orphan this whole arrangement exists to prevent.
 #
-# The Deployment and ServiceAccount next to this file are still applied with kubectl, on
-# purpose: they create nothing outside the cluster, so they cannot be orphaned.
+# The Deployment and ServiceAccount next to this file are commented out too, each for its
+# own reason — see the header on each.
 #
 # apiVersion: v1
 # kind: Service

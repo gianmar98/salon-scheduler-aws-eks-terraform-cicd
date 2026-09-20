@@ -6,6 +6,8 @@
 resource "kubernetes_deployment_v1" "appointments" {
   count = var.eks_app_enabled ? 1 : 0 #same gate as Service
 
+  depends_on = [kubernetes_service_account_v1.appointments]
+
   metadata { #deployment's ID
     name      = var.eks_app_selector
     namespace = var.eks_app_namespace #same folder as service (default)

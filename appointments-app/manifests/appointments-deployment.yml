@@ -18,8 +18,9 @@
 # Applying this file would create a SECOND Deployment under the same name and fight the
 # Terraform-managed one.
 #
-# appointments-serviceaccount.yml next to this file is still applied with kubectl, on
-# purpose: it creates nothing outside the cluster and holds no generated values.
+# appointments-serviceaccount.yml next to this file is commented out too: the admission
+# controller rejects every pod until that ServiceAccount exists, so Terraform has to own
+# it or a cold rebuild stalls at 0 of 2 replicas.
 #
 # apiVersion: apps/v1
 # kind: Deployment

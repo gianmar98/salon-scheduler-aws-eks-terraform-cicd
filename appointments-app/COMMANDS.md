@@ -466,9 +466,10 @@ the node group existed.
 
 Both can look healthy while the app still gets no credentials. The association stores the
 service account as a plain string and never checks that it exists, so a name that does not
-match `service_account_name` in `infrastructure/modules/eks/k8s_deployment.tf` — or the
-`name` in `manifests/appointments-serviceaccount.yml` — fails silently: no error from AWS,
-no error from Kubernetes, just a pod with no permissions.
+match `service_account_name` in `infrastructure/modules/eks/k8s_deployment.tf` — or
+`metadata.name` in `infrastructure/modules/eks/k8s_service_account.tf` — fails silently:
+no error from AWS, no error from Kubernetes, just a pod with no permissions. All three
+read `var.eks_app_service_account`, so that drift is not reachable today.
 
 To confirm end to end, exec into a running pod and check which identity it picked up:
 
