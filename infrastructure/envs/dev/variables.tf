@@ -248,6 +248,11 @@ variable "appointments_db_username" {
   type        = string
 }
 
+variable "appointments_db_allow_major_version_upgrade" {
+  description = "Permit a major engine version change — RDS rejects one without it, and the parameter group family must change in the same apply"
+  type        = bool
+}
+
 variable "appointments_db_parameter_group_name" {
   description = "DB parameter group — the default.<engine><version> group unless a custom one exists"
   type        = string

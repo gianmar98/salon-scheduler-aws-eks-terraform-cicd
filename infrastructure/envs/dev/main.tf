@@ -122,6 +122,7 @@ module "rds_db" {
   appointments_db_username     = var.appointments_db_username
   appointments_db_iam_username = var.appointments_db_iam_username
   #----------------------------------------------------------------------------------------
+  appointments_db_allow_major_version_upgrade   = var.appointments_db_allow_major_version_upgrade
   appointments_db_parameter_group_name          = var.appointments_db_parameter_group_name
   appointments_db_skip_final_snapshot           = var.appointments_db_skip_final_snapshot
   appointments_db_publicly_accessible           = var.appointments_db_publicly_accessible

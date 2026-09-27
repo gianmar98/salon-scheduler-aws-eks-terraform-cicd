@@ -21,7 +21,7 @@ left out.
 
 ## Inputs
 
-All 17 are supplied by the env layer; validation lives here, not there.
+All 18 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -33,6 +33,7 @@ All 17 are supplied by the env layer; validation lives here, not there.
 | `appointments_db_instance_class` | string | |
 | `appointments_db_username` | string | master username |
 | `appointments_db_iam_username` | string | the application's login — token auth, never a password; also passed to the `eks` module as `eks_app_db_user` |
+| `appointments_db_allow_major_version_upgrade` | bool | required for a major engine bump; see the gotcha below |
 | `appointments_db_parameter_group_name` | string | `default.<engine><version>` unless a custom group exists |
 | `appointments_db_skip_final_snapshot` | bool | `true` for dev |
 | `appointments_db_publicly_accessible` | bool | public DNS name; the SG is the real gate |
@@ -106,6 +107,11 @@ running 24/7, or $0 if the account is still inside the 12-month RDS free tier.
 - **The real lever is uptime, not configuration.** A stopped instance bills storage only
   (~$2.30/mo). `aws_db_instance` does not manage run state, so stopping it out-of-band
   causes no drift. AWS force-starts after 7 days.
+- **Stay on an engine version inside standard support.** MySQL 8.0 left it, and RDS then
+  charges Extended Support at $0.10 per vCPU-hour — $0.20/hr on a 2-vCPU
+  `db.t4g.micro`, **13.5× the $0.016 instance rate**. It bills only while the instance
+  runs, so stopping the DB still zeroes it, but any uptime costs 13.5× what it looks
+  like. This is why the version is `8.4`.
 
 ## Gotchas
 
@@ -125,6 +131,19 @@ running 24/7, or $0 if the account is still inside the 12-month RDS free tier.
   console keeps showing the old value — this is what made `iam_auth` look like it had not
   applied. `aws rds describe-db-instances --db-instance-identifier salon-db-dev` shows the
   pending block.
+- **A major version bump takes three inputs moving together.**
+  `appointments_db_allow_major_version_upgrade = true`, the new
+  `appointments_db_engine_version`, and an `appointments_db_parameter_group_name` in the
+  matching family must all land in one apply — RDS rejects the modification otherwise,
+  and Terraform sends them as a single `ModifyDBInstance`. It is one-way: with
+  `backup_retention_period` at 0, RDS takes **no** pre-upgrade snapshot (it only does so
+  when retention > 0), so there is nothing to roll back to. Acceptable here because the
+  schema and seed rows come from `manage.py migrate` and `0002_populate.py`.
+- **8.0 → 8.4 does not break the two logins.** The `mysql8.0` family defaults to
+  `default_authentication_plugin = mysql_native_password`, and the `mysql8.4` default
+  parameter group ships `mysql_native_password = ON` (static, non-modifiable) — so the
+  master user keeps working and the `mysql` provider keeps connecting. The app user is on
+  `AWSAuthenticationPlugin`, which is engine-version independent.
 - **The SG's `description` is immutable.** It interpolates `appointments_db_identifier`,
   so changing the identifier replaces the security group while it is attached to a live
   instance.

@@ -12,6 +12,11 @@ resource "aws_db_instance" "salon_rds_mysql" {
   parameter_group_name = var.appointments_db_parameter_group_name
   skip_final_snapshot  = var.appointments_db_skip_final_snapshot
 
+  # RDS refuses a major version bump (8.0 -> 8.4) without this. The new version and a
+  # parameter group in the matching family have to arrive in the same modification, so
+  # appointments_db_engine_version and appointments_db_parameter_group_name move together.
+  allow_major_version_upgrade = var.appointments_db_allow_major_version_upgrade
+
   # RDS generates the master password and owns it in Secrets Manager, so it never
   # reaches tfvars or state. Not a tfvars dial: setting this to false requires a
   # password argument that no longer exists.
