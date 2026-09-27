@@ -81,12 +81,17 @@ variable "eks_app_service_account" {
 
 # SERVICE ------------------------------------------------------------------------
 variable "eks_app_enabled" {
-  description = "Creates the Service and its load balancer. Turn off and apply BEFORE eks_enabled, or the provider loses the cluster address and cannot delete it"
+  description = "Turns on everything inside the cluster: the app, its Ingress (the ALB), and the load balancer controller. Turn off and apply BEFORE eks_enabled, or the providers lose the cluster address and cannot delete them"
   type        = bool
 }
 
 variable "eks_app_service_name" {
   description = "Name of the Kubernetes Service that fronts the app"
+  type        = string
+}
+
+variable "eks_app_ingress_name" {
+  description = "Name of the Kubernetes Ingress the ALB controller turns into a real load balancer"
   type        = string
 }
 

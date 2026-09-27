@@ -1,7 +1,8 @@
 # `eks` module
 
 A Kubernetes cluster and one managed node group, plus the two IAM roles neither can start
-without, plus the two Kubernetes objects that run the application on it. The pipeline
+without, plus the Kubernetes objects that run the application on it, plus the AWS Load
+Balancer Controller that puts an Application Load Balancer in front of them. The pipeline
 still stops at ECR — the image is deployed from here, by `terraform apply`, not by a
 pipeline stage.
 
@@ -19,12 +20,22 @@ Written directly in Terraform from raw resources, not from
 resources by default, including a KMS key and a CloudWatch log group this project does not
 want. Four resources that can be read top to bottom is the better trade for a capstone.
 
+The load balancer work follows ACI Lab 9, which installs the controller with the `helm`
+CLI and applies an Ingress manifest with `kubectl`. Here both are Terraform resources —
+`helm_release.alb_controller` and `kubernetes_ingress_v1.appointments` — and the Ingress
+carries the same field values the lab's manifest specified. Two things differ from the lab:
+the lab's IAM policy was pre-attached in its account, so this module vendors the upstream
+policy file (see `NOTICE`); and the lab switches the Service to `NodePort`, while this one
+is `ClusterIP`, because `target-type: ip` sends ALB traffic straight to pod IPs and never
+touches a node port.
+
 ## Cost, and the switch that controls it
 
 **The control plane is $0.10/hour — about $73/month — whether or not anything runs on it.**
 There is no free tier and no pause. Two `t3.small` spot nodes add roughly $9/month, so the
 control plane is ~88% of the bill: shrinking nodes saves almost nothing, and destroying the
-cluster saves nearly everything.
+cluster saves nearly everything. The ALB adds about $16/month ($0.0225/hour plus usage) and
+goes away with `eks_app_enabled = false`.
 
 Hence `eks_enabled` in `terraform.tfvars`. The env layer carries `count = var.eks_enabled ? 1 : 0`
 on the module block, so:
@@ -42,12 +53,14 @@ Two consequences of that `count`:
   resource address in state and needs a `terraform state mv` per resource.
 - **Anything referencing this module needs `try(module.eks[0].x, null)`**, or a `false`
   apply fails on an undefined reference. `envs/dev/outputs.tf`, `kubernetes_provider.tf`,
-  and the `rds` module's EKS ingress rule all reference it, and all three use `try`.
+  `helm_provider.tf`, and the `rds` module's EKS ingress rule all reference it, and all
+  four use `try`.
 
-`eks_app_enabled` is a **second** switch, gating only the Kubernetes objects. It exists
-because `kubernetes_provider.tf` reads the cluster address from this module: turning
-`eks_enabled` off removes that address, and Terraform is then left with a Service and a
-Deployment to delete and nowhere to send the request — it fails against `localhost`.
+`eks_app_enabled` is a **second** switch, gating everything that lives inside the cluster —
+the ServiceAccount, Service, Deployment, Ingress, and the controller's Helm release. It
+exists because `kubernetes_provider.tf` and `helm_provider.tf` read the cluster address from
+this module: turning `eks_enabled` off removes that address, and Terraform is then left with
+objects to delete and nowhere to send the request — it fails against `localhost`.
 Shutdown is therefore two applies, `eks_app_enabled = false` first. Bring-up on a cold
 cluster is the mirror: both flags true in one run fails at plan with "provider
 configuration depends on values that cannot be determined until apply", the same trap as
@@ -71,22 +84,32 @@ Re-enabling gives a **new endpoint and a new certificate**, so
 | `aws_eks_pod_identity_association.appointments_app` | binds a Kubernetes service account to that role |
 | `aws_iam_policy.eks_app_base_policy` + 1 attachment | what the application may do: scan the announcements table, open a database connection |
 | `kubernetes_service_account_v1.appointments` | the identity the pods run as, and what Pod Identity maps to the app role |
-| `kubernetes_service_v1.appointments` | the load balancer and the stable entry point in front of the pods |
+| `kubernetes_service_v1.appointments` | the stable in-cluster address (`ClusterIP`) the Ingress routes to |
 | `kubernetes_deployment_v1.appointments` | the pods themselves — image, replica count, environment |
+| `aws_ec2_tag.subnet_elb_role` / `subnet_cluster` | one pair per subnet — how the controller finds where to put the ALB |
+| `aws_iam_role.alb_controller_role` + policy + attachment | what the load balancer controller may do in AWS |
+| `aws_eks_pod_identity_association.alb_controller_association` | binds the controller's service account to that role |
+| `helm_release.alb_controller` | the AWS Load Balancer Controller itself |
+| `kubernetes_ingress_v1.appointments` | the request the controller turns into a real ALB |
 
-Sixteen objects on a first apply — the three node policy attachments come from one
-`for_each`, and the last three are Kubernetes objects rather than AWS ones.
+29 objects on a first apply with three subnets — the node policy attachments and the
+subnet tags come from `for_each`. The four Kubernetes objects and the Helm release are the
+five `eks_app_enabled` gates; everything else follows `eks_enabled` alone.
 
-## Three Kubernetes objects live here, for three different reasons
+## Four Kubernetes objects live here, for different reasons
 
-Every manifest in `appointments-app/manifests/` is commented out; all three are Terraform
-resources now, and the reasoning differs for each:
+Every manifest in `appointments-app/manifests/` is commented out; all of them are
+Terraform resources now, and the reasoning differs for each:
 
-- **`kubernetes_service_v1`** is here because `type = LoadBalancer` makes Kubernetes ask
-  AWS for a classic load balancer — a billable resource Terraform did not create and so
-  would not destroy. Applied with `kubectl`, it outlives `eks_enabled = false` as an
-  orphan with no owner. In state, destroying the cluster deletes the Service first and
-  Kubernetes releases the load balancer on the way out.
+- **`kubernetes_ingress_v1`** is here because it makes the controller create an ALB — a
+  billable AWS resource Terraform did not create directly and so would not destroy.
+  Applied with `kubectl`, it outlives `eks_enabled = false` as an orphan with no owner. In
+  state, shutdown deletes the Ingress first and the controller removes the ALB on the way
+  out.
+- **`kubernetes_service_v1`** carried that same argument until Lab 9, when it was
+  `type = LoadBalancer` and asked AWS for a Classic Load Balancer itself. It is `ClusterIP`
+  now and creates nothing outside the cluster, but the Ingress names it as its backend and
+  both share the `eks_app_enabled` lifecycle, so it stays beside it.
 - **`kubernetes_deployment_v1`** creates nothing outside the cluster and cannot be
   orphaned. It is here because its values *are* this run's outputs: `eks_app_image_uri`
   from `module.ecr`, `eks_app_db_host` from `module.rds_db`. As a manifest it carried
@@ -105,7 +128,8 @@ infer the ordering and will otherwise create both at once.
 
 `eks_app_selector` is the single value three places must agree on — the Service's
 selector, the Deployment's `match_labels`, and the pod template's label. A mismatch is not
-an error: the Service simply has no backends and the URL times out.
+an error: the Service simply has no backends, the ALB has no targets, and the URL returns
+`503`.
 
 ## The two IAM roles are not interchangeable
 
@@ -181,7 +205,46 @@ surfaces much later as the application failing to reach the database.
 a user created `IDENTIFIED WITH AWSAuthenticationPlugin` before that token is accepted —
 that half lives in the `rds` module, not here.
 
-## `depends_on` is load-bearing in three places
+## The load balancer controller builds the ALB, not Terraform
+
+An Ingress is only a written request: "an internet-facing load balancer that sends `/` to
+this Service." Kubernetes itself does nothing with it. The AWS Load Balancer Controller —
+two pods in `kube-system`, installed by `helm_release.alb_controller` — watches for Ingress
+objects and calls the AWS API to create, update, or delete the matching ALB, target group,
+and security groups. It also watches the pods, so the ALB's target list follows every
+rollout. None of that is in Terraform state; the Ingress is.
+
+The controller gets AWS credentials the same way the app does — its own role, trusted by
+`pods.eks.amazonaws.com`, matched by an association on `kube-system` plus the service
+account name the chart creates. It is a **separate** role on purpose: the vendored policy
+grants ~80 actions across ELB, EC2, ACM, WAF and Shield, mostly on `*`, while the app role
+has two. A compromised app pod should not be able to delete load balancers.
+
+Things that are easy to get wrong here:
+
+- **`vpcId` and `region` are passed to the chart explicitly.** The controller otherwise
+  discovers them from the EC2 instance metadata service, which these nodes do not let pods
+  reach. The symptom is both pods in `CrashLoopBackOff` with `failed to get VPC ID ...
+  context deadline exceeded` in the logs, and the apply failing on the Helm rollout wait.
+  `eks_vpc_id` exists only for this.
+- **The service account name is a string on both sides.** The chart creates the account
+  from `serviceAccount.name`, and the association matches on
+  `eks_alb_controller_service_account`. Both read the same variable; if they ever diverge,
+  everything applies and the controller simply has no credentials.
+- **The Ingress must be deleted while the controller is still running.** The controller
+  puts a finalizer on each Ingress it manages and only it can remove it. Uninstall the
+  controller first and the Ingress delete hangs forever while the ALB stays behind,
+  billing. The Ingress's `depends_on` on the Helm release is what orders shutdown
+  correctly.
+- **Helm's record of the install lives in the cluster**, as a secret named
+  `sh.helm.release.v1.<name>.v<revision>` in `kube-system`, not in the AWS console — the
+  controller is not an EKS add-on.
+
+The chart version (`eks_alb_controller_chart_version`) and the vendored policy file's
+version must move together; a newer controller can call APIs the older policy never
+granted.
+
+## `depends_on` is load-bearing in five places
 
 Terraform sees `aws_iam_role.x.arn` and orders the **role** first. It has no idea the
 role's **policy attachments** matter. Without the explicit `depends_on` it can legally
@@ -195,6 +258,15 @@ The third is `kubernetes_deployment_v1` on `kubernetes_service_account_v1`, for 
 class of reason: `service_account_name` is a string read from a variable, not a reference
 to the resource, so nothing in the graph connects them.
 
+The fourth is `helm_release.alb_controller` on the node group and the controller's Pod
+Identity association: its pods need somewhere to run, and credentials the moment they
+start, or the rollout wait fails.
+
+The fifth is `kubernetes_ingress_v1` on the Helm release. On bring-up it keeps the Ingress
+from reaching the controller's admission webhook before its pods are ready (`no endpoints
+available for service aws-load-balancer-webhook-service`); on shutdown it reverses, so the
+Ingress is deleted while the controller can still remove its finalizer and the ALB.
+
 ## Networking
 
 Default VPC, public subnets, no NAT gateway. A private-subnet cluster would add roughly
@@ -205,6 +277,13 @@ Subnets come from `data.aws_subnets.eks_subnets` in the env layer, filtered by
 letter-to-datacenter mapping per account, so the same letter is different hardware in a
 different account. `use1-az3` is excluded deliberately: EKS control planes cannot run
 there.
+
+`subnet_tags.tf` tags those subnets for the load balancer controller:
+`kubernetes.io/role/elb = 1` marks a subnet as a valid home for an internet-facing ALB, and
+`kubernetes.io/cluster/<name> = shared` says this cluster may use it. Without them the
+controller finds no subnets and the Ingress never gets an address. The subnets belong to
+the default VPC, not to Terraform — only the tags are managed, so destroying the cluster
+removes the tags and leaves the subnets.
 
 ### The public/private endpoint trap
 
@@ -239,12 +318,13 @@ the architecture matches. Keep every entry in the same family.
 
 ## Inputs
 
-All 26 are supplied by the env layer; validation lives here, not there.
+All 32 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
 | `eks_cluster_name` | string | env-suffixed by the caller |
 | `eks_subnets_ids` | list(string) | ≥ 2 AZs, enforced |
+| `eks_vpc_id` | string | computed in the env layer from `data.aws_vpc.default`; passed to the controller, which cannot discover it |
 | `eks_kubernetes_version` | string | pin it, or AWS picks the moving default |
 | `eks_node_group_name` | string | env-suffixed by the caller |
 | `eks_node_capacity_type` | string | `SPOT` \| `ON_DEMAND`, enforced |
@@ -253,10 +333,11 @@ All 26 are supplied by the env layer; validation lives here, not there.
 | `eks_node_desired_size` | number | nodes now |
 | `eks_node_min_size` | number | lower bound |
 | `eks_node_max_size` | number | upper bound |
-| `eks_app_namespace` | string | namespace both Kubernetes objects are created in |
+| `eks_app_namespace` | string | namespace the app's Kubernetes objects are created in |
 | `eks_app_service_account` | string | must match the ServiceAccount manifest's `name` |
-| `eks_app_enabled` | bool | gates the Service and Deployment; turn off and apply **before** `eks_enabled` |
-| `eks_app_service_name` | string | the Service's name in the cluster |
+| `eks_app_enabled` | bool | gates the ServiceAccount, Service, Deployment, Ingress, and the controller's Helm release; turn off and apply **before** `eks_enabled` |
+| `eks_app_service_name` | string | the Service's name in the cluster — the Ingress's backend points at it |
+| `eks_app_ingress_name` | string | the Ingress's name in the cluster |
 | `eks_app_selector` | string | the pod label — Service selector, Deployment selector, and pod template all use it |
 | `eks_app_container_port` | number | must match the Dockerfile's `EXPOSE` and `CMD` |
 | `eks_app_replicas` | number | pod copies to keep running |
@@ -269,8 +350,12 @@ All 26 are supplied by the env layer; validation lives here, not there.
 | `eks_app_db_name` | string | database Django connects to |
 | `eks_app_dynamodb_announcements_table_arn` | string | computed in the env layer from the `dynamodb` module's output |
 | `eks_app_rds_db_user_arn` | string | computed in the env layer; `rds-db` namespace, not `rds` |
+| `eks_alb_controller_name` | string | the Helm release name — what `helm list` shows |
+| `eks_alb_controller_namespace` | string | `kube-system`; also the namespace the Pod Identity association matches |
+| `eks_alb_controller_service_account` | string | the chart creates it and the association matches it — one variable feeds both |
+| `eks_alb_controller_chart_version` | string | pinned; keep in step with the vendored IAM policy's version |
 
-`eks_subnets_ids` is computed from a data source in the env layer and so never passes
+`eks_subnets_ids` and `eks_vpc_id` are computed from data sources in the env layer and so never pass
 through `envs/dev/variables.tf` or `terraform.tfvars` — the same shape as
 `appointments_db_vpc_id` on the `rds` module. The two ARN inputs are computed the same way,
 from other modules' outputs, and are likewise absent from `terraform.tfvars`.
@@ -292,15 +377,17 @@ its own.
 
 Five.
 
-`cluster_endpoint` and `cluster_certificate_authority_data` exist for one consumer:
-`envs/dev/kubernetes_provider.tf`. They are the API address and the CA cert to verify it
-against — the same two values `aws eks update-kubeconfig` writes into `~/.kube/config`.
-Both change on every rebuild, which is why nothing caches them.
+`cluster_endpoint` and `cluster_certificate_authority_data` exist for two consumers:
+`envs/dev/kubernetes_provider.tf` and `envs/dev/helm_provider.tf`. They are the API address
+and the CA cert to verify it against — the same two values `aws eks update-kubeconfig`
+writes into `~/.kube/config`. Both change on every rebuild, which is why nothing caches
+them.
 
-`app_url` is the load balancer's hostname with `http://` in front, read off the Service's
-status. The Service sets `wait_for_load_balancer = true` so apply blocks until AWS reports
-an endpoint and this is never empty. It is `http`, not `https` — a classic load balancer
-with no certificate.
+`app_url` is the ALB's hostname with `http://` in front, read off the Ingress's status. The
+Ingress sets `wait_for_load_balancer = true` so apply blocks the 2–4 minutes the controller
+takes to build the ALB, and this is never empty. It is `http`, not `https` — the ALB has one
+listener on port 80 and no certificate. The page can still take a minute or two after apply
+to load, while the ALB health-checks the pods before sending them traffic.
 
 `cluster_security_group_id` is the security group EKS creates and attaches to the managed
 nodes. `modules/rds` takes it as an allowed inbound source, so pods can reach the database
@@ -358,8 +445,13 @@ Two things follow:
   appointments-deployment`. Setting the tag to a commit SHA makes the deploy explicit but
   moves the bump to a hand edit.
 - **No readiness probe on the Deployment.** A pod counts as ready the moment the container
-  starts, so during a rolling update the load balancer can route to a pod before Django is
-  serving. Tolerable here because the health check is TCP and `runserver` binds quickly.
+  starts. The ALB's own health check (HTTP `GET /`) keeps traffic off a pod until Django
+  answers, but Kubernetes does not wait for it, so a rollout can retire old pods before the
+  new ones pass and serve a few `502`/`503`s. The controller's pod readiness gate (label the
+  namespace `elbv2.k8s.aws/pod-readiness-gate-inject=enabled`) is the fix.
+- **HTTP only.** The ALB has no HTTPS listener — that needs a domain and an ACM certificate.
+  Its security group, created by the controller, is open to `0.0.0.0/0` on port 80, the same
+  exposure the Classic Load Balancer had.
 - **No resource requests or limits.** Two pods on two `t3.small` nodes with nothing else
   scheduled, so the scheduler has no packing decision to get wrong.
 - **`runserver` in production.** Django's development server, from the ACI Dockerfile's
@@ -403,3 +495,10 @@ Two things follow:
 - **The Service's `selector` is a plain map; the Deployment's is a `selector` block with
   `match_labels`.** The same idea with two different syntaxes, and pasting one into the
   other validates as far as HCL and fails in the provider.
+- **A failed Helm install is left in the cluster but not in state.** If the controller's
+  rollout fails, Terraform records nothing, yet the release still exists, and the next
+  apply fails with `cannot re-use a name that is still in use`. Clear it with
+  `helm uninstall aws-load-balancer-controller -n kube-system`, then apply again.
+- **The helm provider v3 uses attribute syntax, not blocks.** `set = [{ name, value }]` and
+  `kubernetes = { exec = { … } }`, with `=` signs — unlike the block style of the
+  neighbouring `kubernetes` provider. Most examples online are v2 and fail `validate`.

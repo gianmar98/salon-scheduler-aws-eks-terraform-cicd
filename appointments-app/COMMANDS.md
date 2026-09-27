@@ -457,7 +457,8 @@ kubectl get daemonset -n kube-system eks-pod-identity-agent
 Pod Identity is what lets the application call AWS without an access key in the image. The
 first command asks the **AWS** side: is there a rule mapping a Kubernetes service account to
 an IAM role? Before `modules/eks/pod_identity.tf` was applied this returned
-`{"associations": []}`; afterwards it lists one, for `appointments-sa` in `default`.
+`{"associations": []}`; now it lists two — `appointments-sa` in `default` for the app, and
+`aws-load-balancer-controller` in `kube-system` for the load balancer controller.
 
 The second asks the **Kubernetes** side: is the agent that actually hands out those
 credentials running? It is a DaemonSet, meaning one copy per node, so `DESIRED`, `CURRENT`,
@@ -516,6 +517,27 @@ The logs are the only place a credentials or discovery problem shows up. One see
 install: `failed to get VPC ID ... through ec2 metadata ... context deadline exceeded`. The
 controller tries to learn its own VPC from the EC2 instance metadata service, which the nodes do
 not let pods reach, so the `vpcId` and `region` chart values have to be passed explicitly.
+
+## Check the Ingress and its load balancer
+
+```bash
+kubectl get ingress appointments-ingress                  # ADDRESS is the ALB's hostname
+kubectl describe ingress appointments-ingress             # Events show what the controller did, or why it refused
+terraform -chdir=../infrastructure/envs/dev output -raw eks_app_url   # the same hostname, with http:// in front
+```
+
+The Ingress is the request; the ALB is what the controller built from it. An empty `ADDRESS`
+means the controller has not acted yet — or cannot, and the reason is in the `Events` at the
+bottom of `describe` (no tagged subnets, missing permissions, a Service name that does not
+exist).
+
+The URL can return `502` or `503` for a minute or two after apply, while the ALB health-checks
+the pods before sending them traffic. In the console it is **EC2 → Load Balancers**, named
+`k8s-default-appointm-…`, and its target group lists the pod IPs directly — that is what
+`target-type: ip` means.
+
+The Service no longer has an external address: `kubectl get service appointments-service`
+shows `TYPE ClusterIP` and no `EXTERNAL-IP`. That is expected — the ALB is the front door now.
 
 ## Ship a new version of the application
 

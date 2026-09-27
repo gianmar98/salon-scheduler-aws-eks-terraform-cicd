@@ -66,7 +66,7 @@ output "aws_subnets" {
 }
 
 output "eks_app_url" {
-  description = "Public URL of the application — the load balancer the Service provisions"
+  description = "Public URL of the application — the load balancer the Ingress provisions"
   value       = try(module.eks[0].app_url, null)
 }
 

@@ -1,15 +1,8 @@
 # Copyright (c) 2026 Giancarlo Martinez
 # SPDX-License-Identifier: Apache-2.0
 
-# The one Kubernetes object Terraform owns rather than kubectl.
-#
-# `type = LoadBalancer` makes Kubernetes ask AWS for a classic load balancer — a real,
-# billable AWS resource that Terraform did not create and therefore would not destroy.
-# Applied with kubectl, it outlives `eks_enabled = false` as an orphan with no owner.
-# Declared here it is in state, so destroying the cluster deletes the Service first and
-# Kubernetes releases the load balancer on the way out.
-#
-# ServiceAccount stay in appointments-app/manifests/ on purpose
+# Stable in-cluster address for the pods. The Ingress points here, and the ALB sends
+# traffic through it. Was type LoadBalancer (a Classic LB) until Lab 9 swapped in the ALB.
 resource "kubernetes_service_v1" "appointments" {
   # Its own flag, separate from eks_enabled, because the kubernetes provider reads the
   # cluster address from this module. Removing the module takes that address with it, and
@@ -40,9 +33,6 @@ resource "kubernetes_service_v1" "appointments" {
       protocol    = "TCP"
     }
 
-    type = "LoadBalancer" #Go get a LB
+    type = "ClusterIP" #inside the cluster only; the ALB is the front door
   }
-
-  # Blocks until the load balancer reports an endpoint, so `app_url` is never empty.
-  wait_for_load_balancer = true
 }

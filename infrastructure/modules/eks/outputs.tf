@@ -25,6 +25,6 @@ output "cluster_certificate_authority_data" {
 }
 
 output "app_url" {
-  description = "Public hostname of the load balancer the Service provisions — open with http, not https"
-  value       = try("http://${kubernetes_service_v1.appointments[0].status[0].load_balancer[0].ingress[0].hostname}", null)
+  description = "Public hostname of the load balancer the Ingress provisions — open with http, not https"
+  value       = try("http://${kubernetes_ingress_v1.appointments[0].status[0].load_balancer[0].ingress[0].hostname}", null)
 }

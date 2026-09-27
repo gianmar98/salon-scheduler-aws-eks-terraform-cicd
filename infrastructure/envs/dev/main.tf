@@ -193,6 +193,7 @@ module "eks" {
   #Service (LB)
   eks_app_enabled        = var.eks_app_enabled
   eks_app_service_name   = var.eks_app_service_name
+  eks_app_ingress_name   = var.eks_app_ingress_name
   eks_app_selector       = var.eks_app_selector
   eks_app_container_port = var.eks_app_container_port
 

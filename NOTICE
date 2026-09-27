@@ -87,6 +87,19 @@ subnet selection, endpoint access configuration, and the eks_enabled destroy swi
 scratch. The lab's verification commands are the only part that traces to ACI, and they
 are commands to run, not code.
 
+The same holds for the Lab 9 load balancer work. ACI's Lab 9 installs the AWS Load
+Balancer Controller with the helm CLI and supplies an ingress manifest
+(appointments-ingress.yml) for the student to apply with kubectl, then changes the service
+manifest's type to NodePort. This repository applies neither: the controller is installed by
+a helm_release resource and the Ingress is a kubernetes_ingress_v1 resource, both in
+infrastructure/modules/eks/, together with the subnet tags, the controller's IAM role and
+Pod Identity association, and the chart values that let it run without instance metadata —
+all the author's own work. The Ingress carries the field values the lab's manifest specified
+(its name, the internet-facing scheme and ip target-type annotations, the alb ingress class,
+and the / prefix routed to appointments-service on port 80); as with Lab 7, only those values
+crossed the boundary, and ACI supplied no Terraform. The Service is ClusterIP rather than the
+lab's NodePort, because ip-mode targets route to pod IPs directly.
+
 One file inside infrastructure/ is neither the author's nor ACI's.
 infrastructure/modules/eks/alb_controller_iam_policy_v3.5.0.json is vendored verbatim from the
 AWS Load Balancer Controller project at tag v3.5.0

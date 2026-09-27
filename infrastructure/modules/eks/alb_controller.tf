@@ -22,7 +22,8 @@ resource "aws_iam_role" "alb_controller_role" {
   assume_role_policy = data.aws_iam_policy_document.alb_controller_assume_role.json
 }
 
-#Policy
+# Vendored verbatim from kubernetes-sigs/aws-load-balancer-controller v3.5.0
+# docs/install/iam_policy.json (Apache-2.0). Recorded in NOTICE. Not hand-trimmed on purpose.
 resource "aws_iam_policy" "alb_controller_policy" {
   name   = "${var.eks_cluster_name}-alb-controller-policy"
   policy = file("${path.module}/alb_controller_iam_policy_v3.5.0.json")
