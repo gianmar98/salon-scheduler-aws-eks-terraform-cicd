@@ -424,3 +424,13 @@ variable "eks_alb_controller_service_account" {
   description = "Badge Pod wears. Which Pod identity maps to an IAM role. Helm chart's default service account"
   type        = string
 }
+
+variable "eks_alb_controller_chart_version" {
+  description = "Helm chart version for the AWS Load Balancer Controller — keep in step with the vendored IAM policy's version"
+  type        = string
+}
+
+variable "eks_alb_controller_name" {
+  description = "Name of the EKS ALB controller"
+  type        = string
+}

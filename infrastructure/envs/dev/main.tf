@@ -175,6 +175,7 @@ module "eks" {
 
   #default subnets for 3 AZs in my default VPC
   eks_subnets_ids = data.aws_subnets.eks_subnets.ids
+  eks_vpc_id      = data.aws_vpc.default.id
 
   #Node group
   eks_node_group_name     = "${var.eks_node_group_name}${local.env_suffix}"
@@ -206,6 +207,8 @@ module "eks" {
   eks_app_change_cause               = var.eks_app_change_cause
   eks_alb_controller_namespace       = var.eks_alb_controller_namespace
   eks_alb_controller_service_account = var.eks_alb_controller_service_account
+  eks_alb_controller_chart_version   = var.eks_alb_controller_chart_version
+  eks_alb_controller_name            = var.eks_alb_controller_name
 
   #External
   eks_app_dynamodb_announcements_table_arn = module.announcements_dynamo_db_table.announcements_table_arn

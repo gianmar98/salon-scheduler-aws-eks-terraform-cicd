@@ -483,6 +483,40 @@ kubectl exec deploy/appointments-deployment -- \
 The ARN should contain `salon-eks-cluster-dev-app-role`. If it names the *node* role
 instead, the badge did not match and the pod fell back to the node's own permissions.
 
+## Check the AWS Load Balancer Controller
+
+```bash
+kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller  # the controller's own pods
+kubectl get secrets -n kube-system -l owner=helm                                        # Helm's record of what it installed
+kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --tail=30  # why it is unhappy
+```
+
+The controller is the pod that turns an `Ingress` object into a real ALB. It is installed by
+`helm_release.alb_controller` in `infrastructure/modules/eks/alb_controller.tf`, not by a
+manifest, and it is a Deployment with `replicaCount: 2` — so two pods on the existing nodes,
+not one per node like `eks-pod-identity-agent`.
+
+The `-n kube-system` matters: the controller is cluster plumbing and lives beside CoreDNS,
+while the app lives in `default`. The `-l` is a label filter, because `kube-system` holds a
+dozen pods that are not this one.
+
+`READY 1/1` and `STATUS Running` on both is the only healthy state. `CrashLoopBackOff` means
+the container started, failed, and Kubernetes is restarting it on a widening delay — the
+`RESTARTS` count climbing is the tell. That state is also what a `terraform apply` failing on
+`Waiting for rollout to finish` means, because `helm_release` defaults to `wait = true` and
+blocks until the pods are healthy.
+
+The second command lists `sh.helm.release.v1.aws-load-balancer-controller.v1` — Helm keeps its
+bookkeeping as a Kubernetes secret, one per revision, which is how it knows what to upgrade or
+roll back. Nothing about the release appears in the AWS console: EKS knows nothing of Helm, and
+this is not an EKS add-on. The closest console view is **EKS → cluster → Resources → Workloads**,
+filtered to `kube-system`, which shows the Deployment the chart created.
+
+The logs are the only place a credentials or discovery problem shows up. One seen on the first
+install: `failed to get VPC ID ... through ec2 metadata ... context deadline exceeded`. The
+controller tries to learn its own VPC from the EC2 instance metadata service, which the nodes do
+not let pods reach, so the `vpcId` and `region` chart values have to be passed explicitly.
+
 ## Ship a new version of the application
 
 Three files change per version, and none of them is a manifest — the Deployment is

@@ -40,3 +40,45 @@ resource "aws_eks_pod_identity_association" "alb_controller_association" {
   role_arn        = aws_iam_role.alb_controller_role.arn
   service_account = var.eks_alb_controller_service_account
 }
+
+#Install controller: Deployment, ServiceAccount, cluster-wide RBAC, webhook with TLS certs,2 Custom Resource Definitions (CRDs)
+#The chart is the package
+#IT WATCHES: Ingress objects (create/edit/delete) -> builds, updates or deletes the real ALB. Also watches pods so the ALB's target list stays correct
+resource "helm_release" "alb_controller" {
+  count = var.eks_app_enabled ? 1 : 0
+
+  name       = var.eks_alb_controller_name          #Release name, what "helm list" would show
+  repository = "https://aws.github.io/eks-charts"   #Chart Repo
+  chart      = "aws-load-balancer-controller"       #which chart in repo
+  version    = var.eks_alb_controller_chart_version #pinned so future apply does not install new one
+  namespace  = var.eks_alb_controller_namespace     #kube-system; no create_namespace since it already exists
+
+  set = [
+    {
+      name  = "clusterName" #tags ALBs it makes and ignores other cluster's objects
+      value = aws_eks_cluster.salon_eks_cluster.name
+    },
+    {
+      name  = "serviceAccount.create"
+      value = "true"
+    },
+    {
+      name  = "serviceAccount.name" #badge name. Same that Pod Identity uses
+      value = var.eks_alb_controller_service_account
+    },
+    {
+      name  = "vpcId" # can't discover it via metadata
+      value = var.eks_vpc_id
+    },
+    {
+      name  = "region" # same reason — it reads region from metadata too
+      value = var.eks_app_aws_region
+    }
+  ]
+
+  depends_on = [
+    aws_eks_node_group.salon_eks_node,                          #since pods need a node
+    aws_eks_pod_identity_association.alb_controller_association #needs credentials so apply works
+  ]
+
+}
