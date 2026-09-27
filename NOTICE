@@ -87,6 +87,18 @@ subnet selection, endpoint access configuration, and the eks_enabled destroy swi
 scratch. The lab's verification commands are the only part that traces to ACI, and they
 are commands to run, not code.
 
+One file inside infrastructure/ is neither the author's nor ACI's.
+infrastructure/modules/eks/alb_controller_iam_policy_v3.5.0.json is vendored verbatim from the
+AWS Load Balancer Controller project at tag v3.5.0
+(kubernetes-sigs/aws-load-balancer-controller, docs/install/iam_policy.json), which is
+licensed Apache-2.0 — the same license as this repository. It is the IAM policy that
+project publishes for its own controller, so it is reproduced unmodified rather than
+rewritten; a hand-edited copy would silently drift from what the controller actually
+calls. JSON has no comment syntax, so its provenance is recorded here and in the
+Terraform resource that loads it. ACI's Lab 9 does not supply this file: in the lab the
+policy was pre-attached to a service account in the provisioned account, and the student
+never sees it.
+
 Two files outside infrastructure/ are also the author's own work, not ACI's:
 appointments-app/COMMANDS.md, an annotated reference for the local, Docker, ECR, and
 kubectl workflows, written for this repository and this machine; and the root README.md.

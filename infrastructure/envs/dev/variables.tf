@@ -414,3 +414,13 @@ variable "eks_app_change_cause" {
   description = "What `kubectl rollout history` shows as CHANGE-CAUSE for this revision"
   type        = string
 }
+
+variable "eks_alb_controller_namespace" {
+  description = "Folder inside cluster. controller goes in kube-system namespace Kubernetes uses for cluster infra."
+  type        = string
+}
+
+variable "eks_alb_controller_service_account" {
+  description = "Badge Pod wears. Which Pod identity maps to an IAM role. Helm chart's default service account"
+  type        = string
+}
