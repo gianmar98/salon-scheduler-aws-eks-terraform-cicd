@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/kubernetes" #Lets Terraform own objects inside the cluster
       version = "~> 3.2"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 3.3"
+    }
   }
 }
 
