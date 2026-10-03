@@ -78,6 +78,11 @@ variable "announcements_table_target_scaling_val" {
   type        = number
 }
 
+variable "announcements_table_seed_items" {
+  description = "Announcements written on every apply, keyed by Timestamp"
+  type        = map(string)
+}
+
 # CODEBUILD UNITTEST--------------------------------------------------------------------------
 variable "unittest_codebuild_project_name" {
   description = "Name of the CodeBuild project that lints and unit-tests the Django app"

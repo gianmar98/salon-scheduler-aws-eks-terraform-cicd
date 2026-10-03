@@ -82,3 +82,9 @@ variable "announcements_table_target_scaling_val" {
     error_message = "Target scaling value must be between 1 and 100."
   }
 }
+
+#SEED
+variable "announcements_table_seed_items" {
+  description = "Announcements written on every apply, keyed by Timestamp"
+  type        = map(string)
+}

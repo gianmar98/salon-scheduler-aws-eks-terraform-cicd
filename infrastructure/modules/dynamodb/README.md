@@ -20,12 +20,27 @@ So every item needs:
 | `Timestamp` | S | partition key (declared in `attributes`), e.g. `20240701` |
 | `Contents` | S | the banner text the template renders |
 
-Only the partition key is declared in Terraform — DynamoDB is schemaless for
-everything else, so `Contents` is written by the application, not by this module.
+Only the partition key is declared in `attributes` — DynamoDB is schemaless for
+everything else, so `Contents` exists only on items that carry it.
+
+## Seed items
+
+`seed_items.tf` writes one `aws_dynamodb_table_item` per entry in
+`announcements_table_seed_items`, a map of `Timestamp` → `Contents`. A full destroy and
+re-apply therefore brings the table back with its banner text instead of empty.
+
+- **Terraform owns only the rows in the map.** Edit one in the console and the next apply
+  puts it back; rows added by hand are never touched.
+- **Adopting existing rows needs no import.** An item write is a `PutItem`, which overwrites
+  a row with the same key rather than failing on it.
+- **The text is in state.** Fine for public banner text; nothing private belongs here.
+- **The values live in `terraform.tfvars`**, which is gitignored. The two announcements come
+  from ACI's Lab 3, and `NOTICE` says everything committed under `infrastructure/` is the
+  author's own, so their text stays out of committed `.tf`.
 
 ## Inputs
 
-All 11 are supplied by the env layer; validation lives here, not there.
+All 12 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -40,6 +55,7 @@ All 11 are supplied by the env layer; validation lives here, not there.
 | `announcements_table_min_RWcapacity` | number | ≥ 2 |
 | `announcements_table_max_RWcapacity` | number | ≤ 20 |
 | `announcements_table_target_scaling_val` | number | AWS accepts 20–90 |
+| `announcements_table_seed_items` | map(string) | `Timestamp` → `Contents`; one table item per entry |
 
 ## Outputs
 

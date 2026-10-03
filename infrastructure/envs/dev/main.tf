@@ -72,6 +72,7 @@ module "announcements_dynamo_db_table" {
   announcements_table_max_RWcapacity      = var.announcements_table_max_RWcapacity
   announcements_table_min_RWcapacity      = var.announcements_table_min_RWcapacity
   announcements_table_target_scaling_val  = var.announcements_table_target_scaling_val
+  announcements_table_seed_items          = var.announcements_table_seed_items
 }
 
 module "unittest_codebuild_project" {
