@@ -19,17 +19,18 @@ provided by the Amazon Cloud Institute, everything under `infrastructure/` is or
 | **App** | Django 5, SQLite locally, booking funnel of service → hairdresser → date → time |
 | **Announcements** | banner text read from a DynamoDB table at request time |
 | **Database** | RDS MySQL, reached with IAM token auth — no password in Terraform or in the app |
-| **CI** | a three-stage CodePipeline — pull from GitHub, run pylint and the test suite, then build the container image — triggered only by pushes to `main` that touch `appointments-app/` |
-| **Images** | built by CodeBuild and pushed to ECR as `latest`, `staging-test-image`, and the commit SHA |
+| **CI/CD** | a four-stage CodePipeline — pull from GitHub, run pylint and the test suite, build the container image, then restart the pods on EKS so they run it — triggered only by pushes to `main` that touch `appointments-app/` |
+| **Images** | built by CodeBuild and pushed to ECR as `latest`, `staging-test-image`, the commit SHA, and the tag the cluster runs |
 | **Reports** | JUnit and Cobertura published to CodeBuild report groups on every run |
 | **Cluster** | EKS with a two-node spot node group, behind an `eks_enabled` switch so it can be destroyed when idle |
-| **Deploy** | the app's Kubernetes objects are Terraform resources, so `terraform apply` puts the ECR image on the cluster and prints its URL |
+| **Deploy** | the app's Kubernetes objects are Terraform resources, so `terraform apply` creates them and prints the URL; after that, each push is deployed by the pipeline's DeployPods stage |
 | **Load balancer** | an Application Load Balancer, built by the AWS Load Balancer Controller (installed with Helm, from Terraform) from a Kubernetes Ingress |
 | **State** | S3 remote backend with lockfile |
 
-Not built yet: a pipeline deploy stage. The image reaches ECR and stops there — the
-pipeline does not know the cluster exists, and deploys are run by hand with
-`terraform apply`.
+A push to `main` reaches the live site with no manual step: the DeployPods stage runs
+`kubectl rollout restart`, and the new pods pull the image BuildImage just pushed. The stage
+exists only while the cluster is up, so pushes don't fail while it is destroyed. Rollback
+is `git revert` and a push.
 
 **The cluster is the expensive part.** The EKS control plane is $0.10/hour flat — about
 $73/month — regardless of load, with no free tier and no pause. `eks_enabled = false` in
@@ -118,7 +119,8 @@ there, not with the `.tf` files:
 
 - [`modules/codebuild_unittest`](infrastructure/modules/codebuild_unittest/README.md) — pylint + tests
 - [`modules/codebuild_buildimage`](infrastructure/modules/codebuild_buildimage/README.md) — Docker build + ECR push
-- [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md) — the three stages
+- [`modules/codebuild_deploypods`](infrastructure/modules/codebuild_deploypods/README.md) — `kubectl rollout restart` on EKS
+- [`modules/codepipeline`](infrastructure/modules/codepipeline/README.md) — the four stages
 - [`modules/dynamodb`](infrastructure/modules/dynamodb/README.md) — announcements table
 - [`modules/ecr`](infrastructure/modules/ecr/README.md) — image repository
 - [`modules/eks`](infrastructure/modules/eks/README.md) — cluster, node group, the app's Kubernetes objects, the load balancer controller and its Ingress, and the `eks_enabled` cost switch
@@ -128,8 +130,8 @@ The unit-test CodeBuild stack was built in the AWS console first and adopted int
 Terraform with `import` blocks — twelve objects, nothing recreated. That process, and
 the traps in it, is written up under Provenance in
 [`modules/codebuild_unittest`](infrastructure/modules/codebuild_unittest/README.md).
-Everything since — the pipeline, RDS, ECR, the image builder, and EKS — was written
-directly in Terraform.
+Everything since — the pipeline, RDS, ECR, the image builder, EKS, and the pod deployer —
+was written directly in Terraform.
 
 ## License
 

@@ -21,8 +21,9 @@ few builds cost pennies; the limit is 10,000 images per repository.
 reachable by name is ever at risk regardless of age. Rules evaluate within 24 hours of a
 push, not immediately.
 
-In practice it fires rarely. Every build pushes three tags — `latest`,
-`staging-test-image`, and the commit SHA. When the next build moves the first two, the
+In practice it fires rarely. Every build pushes four tags — `latest`,
+`staging-test-image`, the commit SHA, and the tag the cluster runs. When the next build
+moves the reused ones, the
 previous image keeps its SHA tag, stays tagged, and is never selected. An image only goes
 fully untagged when its SHA tag is taken too, which happens when two builds race on the
 same commit — a `git push` and a manual "Release change" seconds apart, for instance.
@@ -63,8 +64,9 @@ inside the build, and the ARN scopes its push permissions to this one repository
 ## Pushing
 
 **Normally the pipeline does this.** A push to `main` touching `appointments-app/` runs
-the unit tests, then the `BuildImage` stage builds and pushes three tags — `latest`,
-`staging-test-image`, and the commit SHA. See `modules/codebuild_buildimage/README.md`.
+the unit tests, then the `BuildImage` stage builds and pushes four tags — `latest`,
+`staging-test-image`, the commit SHA, and the tag the cluster runs — and `DeployPods`
+restarts the pods onto it. See `modules/codebuild_buildimage/README.md`.
 
 The manual login/tag/push/verify commands below are still in
 `appointments-app/COMMANDS.md`, and remain the fastest way to test a Dockerfile change

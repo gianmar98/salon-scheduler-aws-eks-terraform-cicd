@@ -282,18 +282,17 @@ Until an image survives that, "it works on my laptop" is all that has been prove
 
 ### What happens before you type anything
 
-A push to `main` touching `appointments-app/` runs three pipeline stages:
+A push to `main` touching `appointments-app/` runs four pipeline stages:
 
 | Stage | What it does |
 |---|---|
 | Source | zips the repo into the artifact bucket |
 | Build | unzips it, runs pylint and the Django tests |
-| BuildImage | unzips it, runs `docker build`, applies three tags, pushes to ECR |
+| BuildImage | unzips it, runs `docker build`, applies four tags, pushes to ECR |
+| DeployPods | `kubectl rollout restart` — the pods pull the image just pushed. Only present while the cluster and app are up |
 
-Then the image sits in ECR. **The pipeline does not deploy it** — there is no deploy
-stage. The cluster pulls the same image when `terraform apply` creates the Deployment, so
-these commands are the local stand-in for what the nodes do: useful for reproducing a
-failure without a cluster running.
+The cluster pulls the same image these commands do, so they are the local stand-in for
+what the nodes do: useful for reproducing a failure without a cluster running.
 
 ### 1. Log in to the registry
 
@@ -541,6 +540,16 @@ shows `TYPE ClusterIP` and no `EXTERNAL-IP`. That is expected — the ALB is the
 
 ## Ship a new version of the application
 
+**The everyday path is one file and a push.** Change the code, commit, push. The pipeline
+tests it, builds the image, and the DeployPods stage restarts the pods onto it — no
+`terraform apply`, no tfvars edit. That works because `eks_app_image_tag` names a tag
+BuildImage re-pushes every build and the Deployment pulls with `image_pull_policy =
+"Always"`. Undo it with `git revert <commit> --no-edit && git push`; see
+[Roll back](#roll-back-to-an-earlier-revision) for why `kubectl rollout undo` cannot.
+
+The rest of this section is the **named-version path**: a tag of its own, so the version can
+be rolled back with `kubectl rollout undo` later.
+
 Three files change per version, and none of them is a manifest — the Deployment is
 Terraform's. `manifests/appointments-deployment.yml` is commented out and applied by
 nothing; editing it changes no running resource. The background colour is the example;
@@ -593,8 +602,9 @@ throughout, so the failure is recoverable — re-run the apply once the image ex
 terraform -chdir=../infrastructure/envs/dev apply
 ```
 
-Pushing to ECR never touches the cluster. Nothing watches the registry; the pods change
-because `apply` rewrites the image string in the pod spec, and that is the only trigger.
+Nothing watches the registry. On this path the pipeline's DeployPods stage still runs, but
+it restarts the pods onto the tag tfvars *currently* names — the old one. The pods move to
+the new tag because `apply` rewrites the image string in the pod spec.
 
 ### Never point `eks_app_image_tag` at `latest` for a version you might roll back to
 
@@ -605,6 +615,21 @@ recorded against `latest` therefore does not reproduce — rolling back to it pu
 roll back to the code they were built from.
 
 ## Roll back to an earlier revision
+
+**After an everyday push, roll back with git, not kubectl.** Every revision the pipeline
+creates names the same reused tag, so `rollout undo` restores the old pod template and
+pulls the *new* image anyway:
+
+```bash
+git log --oneline -n 4
+git revert <commit-id> --no-edit
+git push
+```
+
+The revert is a new commit, so the pipeline rebuilds the old code and DeployPods restarts the
+pods onto it.
+
+**For a named version**, `kubectl rollout undo` works, because that tag is never reassigned:
 
 ```bash
 kubectl rollout history deployment/appointments-deployment

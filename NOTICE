@@ -67,12 +67,26 @@ to adapt. It exists here because this repository provisions its own cluster and 
 that account itself, and because the EKS Pod Identity association in infrastructure/ matches
 pods by that exact name.
 
+It is true again of the Lab 10 change inside appointments-app/ —
+buildspecs/buildspec_deploypods.yml. ACI supplied the file as a skeleton for the student to
+complete: update-kubeconfig in pre_build, a delete-then-apply of the manifests in build, and a
+wait followed by describe-load-balancers in post_build. The phase structure and the pre_build
+and post_build commands follow ACI's instructions, so the file is ACI's content. The author's
+edits are adaptations to this repository: the cluster name is read from the
+$EKS_CLUSTER_NAME environment variable that modules/codebuild_deploypods injects, rather
+than the lab's hardcoded eks-cluster; and the build phase runs `kubectl rollout restart` on
+the Deployment instead of deleting it and applying manifests/, because here Terraform owns
+the Deployment and the manifests are commented out and applied by nothing. The file header
+records the same list.
+
 Everything in infrastructure/ is the original work of this repository's author:
 the Terraform module and environment layout; the DynamoDB table configuration; the
 codebuild_unittest module with its IAM service role and policies, CloudWatch log group,
 webhook, and test and coverage report groups; the codebuild_buildimage module with its
-role, policies, log group, and ECR push permissions; the CodePipeline module with its
-service role, artifact bucket, GitHub source trigger, and three stages; the ECR
+role, policies, log group, and ECR push permissions; the codebuild_deploypods module with
+its role, policies, and log group; the CodePipeline module with its service role, artifact
+bucket, GitHub source trigger, and four stages, the last of them created only while the
+cluster is up; the ECR
 repository module; the RDS module with its security group and the IAM database
 authentication wiring in envs/dev; the EKS module with its cluster, managed node group,
 cluster and node IAM roles, and the eks_enabled switch in envs/dev that destroys it on
@@ -99,6 +113,15 @@ all the author's own work. The Ingress carries the field values the lab's manife
 and the / prefix routed to appointments-service on port 80); as with Lab 7, only those values
 crossed the boundary, and ACI supplied no Terraform. The Service is ClusterIP rather than the
 lab's NodePort, because ip-mode targets route to pod IPs directly.
+
+The same holds for the Lab 10 pipeline work outside the buildspec. ACI's Lab 10 creates the
+DeployPods CodeBuild project and pipeline stage by hand in the console, using the lab
+account's pre-provisioned CodeBuildProjectRole and eks-cluster. This repository builds them in
+infrastructure/ instead: the codebuild_deploypods module, the dynamic DeployPods stage in the
+codepipeline module, and, in the eks module, the EKS access entry that admits the CodeBuild
+role, CodeBuild's published IP ranges on the API endpoint's allowlist, and the
+ignore_changes rule that keeps Terraform from undoing each restart. All of it is the
+author's own work; ACI supplied no Terraform for any of it.
 
 One file inside infrastructure/ is neither the author's nor ACI's.
 infrastructure/modules/eks/alb_controller_iam_policy_v3.5.0.json is vendored verbatim from the

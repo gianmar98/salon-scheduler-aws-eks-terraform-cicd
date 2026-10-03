@@ -1,15 +1,17 @@
 # `codepipeline` module
 
-Three-stage pipeline that pulls the repo from GitHub, runs the unit tests, then builds
-the container image and pushes it to ECR.
+Four-stage pipeline that pulls the repo from GitHub, runs the unit tests, builds the
+container image and pushes it to ECR, then restarts the app's pods on EKS so they pull
+that image.
 
 ```
-Source (CodeStarSourceConnection)  →  Build (CodeBuild)  →  BuildImage (CodeBuild)
-       writes source_output              reads source_output   reads source_output
-                                         codebuild_unittest    codebuild_buildimage
+Source (CodeStarSourceConnection)  →  Build (CodeBuild)  →  BuildImage (CodeBuild)  →  DeployPods (CodeBuild)
+       writes source_output              reads source_output   reads source_output      reads source_output
+                                         codebuild_unittest    codebuild_buildimage     codebuild_deploypods
 ```
 
-No deploy stage. The image lands in ECR; nothing consumes it yet.
+DeployPods exists only while the cluster and the app are up — see
+[The DeployPods stage comes and goes](#the-deploypods-stage-comes-and-goes).
 
 ## What it creates
 
@@ -17,11 +19,11 @@ No deploy stage. The image lands in ECR; nothing consumes it yet.
 |---|---|
 | `aws_codepipeline.application_pipeline` | the pipeline, `pipeline_type = "V2"` |
 | `aws_iam_role.application_pipeline_role` | service role, trusted by `codepipeline.amazonaws.com` |
-| `aws_iam_role_policy.application_pipeline` | artifact bucket, connection, and StartBuild on both projects |
+| `aws_iam_role_policy.application_pipeline` | artifact bucket, connection, and StartBuild on all three projects |
 | `module.artifacts_s3_bucket` | the artifact store — `terraform-aws-modules/s3-bucket/aws` 5.12.0 |
 
 The GitHub connection is **not** here. It is account- and region-wide and shared with
-both CodeBuild modules, so it lives in the env layer
+all three CodeBuild modules, so it lives in the env layer
 (`envs/dev/codeconnections.tf`); this module takes its ARN as an input.
 
 ## The artifact store is mandatory
@@ -33,10 +35,10 @@ the bucket is the mechanism, not a feature.
 Two things follow:
 
 - **Versioning must be on.** CodePipeline addresses artifacts by version ID.
-- **Both CodeBuild service roles need S3 access to this bucket.** The console originally
+- **Every CodeBuild service role needs S3 access to this bucket.** The console originally
   scoped that grant to `codepipeline-<region>-*`; since the bucket here is named
   `aci-capstone2-pipeline-artifact-bucket`, the grant was repointed at it by name. The
-  same string is passed to all three modules from the env layer — a plain string rather
+  same string is passed to all four modules from the env layer — a plain string rather
   than a resource reference, because referencing the bucket from a `codebuild_*` module
   while `codepipeline` references that project would be a dependency cycle.
 
@@ -50,7 +52,7 @@ unzip -l /tmp/src.zip
 
 ## Inputs
 
-All 12 are supplied by the env layer; validation lives here, not there.
+All 15 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -66,6 +68,9 @@ All 12 are supplied by the env layer; validation lives here, not there.
 | `application_pipeline_codebuild_project_arn` | string | same project — scopes the `StartBuild` grant |
 | `application_pipeline_codebuild_buildimage_project_name` | string | from `codebuild_buildimage`'s output — the BuildImage stage |
 | `application_pipeline_codebuild_buildimage_project_arn` | string | same project — also scoped in the `StartBuild` grant |
+| `application_pipeline_codebuild_deploypods_project_name` | string | from `codebuild_deploypods`'s output — the DeployPods stage |
+| `application_pipeline_codebuild_deploypods_project_arn` | string | same project — also scoped in the `StartBuild` grant |
+| `application_pipeline_deploypods_enabled` | bool | adds the DeployPods stage; the env layer derives it from `eks_enabled && eks_app_enabled` |
 
 ## Outputs
 
@@ -89,8 +94,26 @@ available here, so:
 | Existing role `CodePipelineRole` | `aws_iam_role.application_pipeline_role` | that role is a lab-account fixture |
 
 Everything else follows the lab: `SUPERSEDED`, a Source stage, a Build stage pointed at
-the unit-test project, a BuildImage stage pointed at the image project, and no deploy
-stage.
+the unit-test project, a BuildImage stage pointed at the image project, and a DeployPods
+stage after it that takes the source artifact in and declares no output.
+
+## The DeployPods stage comes and goes
+
+The cluster is destroyed between work sessions to save money. A DeployPods stage pointed at
+a cluster that does not exist would fail every push, so the stage is a `dynamic "stage"`
+block:
+
+```hcl
+for_each = var.application_pipeline_deploypods_enabled ? [1] : []
+```
+
+A one-item list makes one stage; an empty list makes none. The env layer sets the flag to
+`eks_enabled && eks_app_enabled` — both, because a running cluster with the app switched off
+has no Deployment to restart. Turning the app off removes the stage in the same apply, and
+the pipeline goes back to three stages.
+
+The `StartBuild` grant on the DeployPods project stays in the role policy either way. The
+project itself always exists; only the stage that calls it comes and goes.
 
 ## Gotchas
 
@@ -103,13 +126,14 @@ stage.
 - **Stage names must be unique within a pipeline.** The second CodeBuild stage is
   `BuildImage`, not a second `Build`. Terraform's `validate` and `plan` both accept a
   duplicate; AWS rejects it at apply time.
-- **Neither Build action declares `output_artifacts`.** Artifacts are zips passed between
-  stages through the bucket. The unit-test project produces reports, and the image project
-  pushes to ECR — neither writes a zip, and no deploy stage would consume one. Naming an
-  output artifact that never gets produced fails the action.
-- **Both stages run on every qualifying push.** The `trigger` block filters by branch and
+- **No CodeBuild action declares `output_artifacts`.** Artifacts are zips passed between
+  stages through the bucket. The unit-test project produces reports, the image project
+  pushes to ECR, and DeployPods talks to the cluster — none writes a zip, and nothing after
+  them would consume one. Naming an output artifact that never gets produced fails the
+  action.
+- **Every stage runs on every qualifying push.** The `trigger` block filters by branch and
   file path for the pipeline as a whole, not per stage, so a change under
-  `appointments-app/` runs the tests *and* builds a new image.
+  `appointments-app/` runs the tests, builds a new image, *and* restarts the pods.
 - **Each CodeBuild project's own `source` and `artifacts` are ignored here.** When
   CodePipeline invokes a project it overrides both to type `CODEPIPELINE` at runtime, so
   a project's `GITHUB` source and `NO_ARTIFACTS` apply only to direct builds.

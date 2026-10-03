@@ -27,16 +27,19 @@ The recipe is not in this module. It lives at
 cloned source at build time; the module only stores the path. Build steps change more
 often than infrastructure, so editing a tag shouldn't require a `terraform apply`.
 
-The buildspec logs in to ECR, builds the image, applies three tags, and pushes them:
+The buildspec logs in to ECR, builds the image, applies four tags, and pushes them:
 
 | Tag | Meaning |
 |---|---|
 | `latest` | most recent successful build |
 | `staging-test-image` | the lab's promotion step |
 | `<commit-sha>` | `CODEBUILD_RESOLVED_SOURCE_VERSION` — traces an image back to exact code |
+| `background-color-updated-to-orange` | hardcoded in the buildspec, so it lands on every build whatever the color |
 
-Because the repository is `MUTABLE`, re-pushing `latest` repoints the tag and leaves the
-previous image untagged rather than failing.
+Because the repository is `MUTABLE`, re-pushing a tag repoints it and leaves the previous
+image untagged rather than failing. The pipeline's DeployPods stage depends on that: it
+restarts the pods onto whatever `eks_app_image_tag` names, so that tag must be one this
+buildspec re-pushes every build.
 
 ## Two settings the buildspec cannot work without
 
@@ -46,7 +49,7 @@ previous image untagged rather than failing.
   than offered as a tfvars dial — there is no working image builder with it off.
 - **`ECR_REPO_URL`**, injected as an `environment_variable` from the `ecr` module's
   `appointments_ecr_repository_url` output. The buildspec uses it for the login, all
-  three tags, and the push. Passing it in keeps the `-dev` suffix derived instead of
+  four tags, and the push. Passing it in keeps the `-dev` suffix derived instead of
   written into a file that every environment shares.
 
 ## Inputs
@@ -94,8 +97,8 @@ makes the tags real.
 ## Who triggers this project
 
 **CodePipeline's `BuildImage` stage, and nothing else.** There is no `webhook.tf` here.
-The pipeline runs `Source → Build (unit tests) → BuildImage`, so the image is only built
-after the tests pass.
+The pipeline runs `Source → Build (unit tests) → BuildImage → DeployPods`, so the image
+is only built after the tests pass, and only reaches the cluster after it is in ECR.
 
 To run it on its own, without a push:
 

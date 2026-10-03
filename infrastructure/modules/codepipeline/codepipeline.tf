@@ -63,8 +63,8 @@ resource "aws_codepipeline" "application_pipeline" {
   stage {
     name = "Build"
 
-    # No output_artifacts: the buildspec declares reports, not artifacts, and there is no
-    # deploy stage to consume them. Naming one that is never produced fails the action.
+    # No output_artifacts: the buildspec declares reports, not artifacts, and no later stage
+    # consumes one. Naming one that is never produced fails the action.
     action {
       name            = "Build"
       category        = "Build"

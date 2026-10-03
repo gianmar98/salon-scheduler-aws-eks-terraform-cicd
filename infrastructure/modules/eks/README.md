@@ -91,6 +91,7 @@ Re-enabling gives a **new endpoint and a new certificate**, so
 | `aws_eks_pod_identity_association.alb_controller_association` | binds the controller's service account to that role |
 | `helm_release.alb_controller` | the AWS Load Balancer Controller itself |
 | `kubernetes_ingress_v1.appointments` | the request the controller turns into a real ALB |
+| `aws_eks_access_entry.eks_entry` + `aws_eks_access_policy_association.eks_entry` | lets the pipeline's DeployPods CodeBuild role restart the app; Edit on the app namespace only |
 
 29 objects on a first apply with three subnets — the node policy attachments and the
 subnet tags come from `for_each`. The four Kubernetes objects and the Helm release are the
@@ -305,6 +306,13 @@ cluster is *tightened*.
 later is a normal apply. A changed home IP locks this machine out until the env layer is
 re-applied — same trade as the RDS security group.
 
+The allowlist also carries **CodeBuild's published IP ranges** for the region, looked up with
+`data "aws_ip_ranges"` (three `/28`s in `us-east-1`). The pipeline's DeployPods stage runs
+`kubectl` from CodeBuild, which sits outside the VPC on AWS-owned addresses; without them it
+times out reaching the API server. Those ranges are shared by every CodeBuild user in the
+region, so the network check now admits more than one machine — the access entry is what
+restricts the cluster to the one role.
+
 ## `ami_type` is deliberately not a tfvars dial
 
 `AL2023_x86_64_STANDARD` is hardcoded because it is determined by the instance family, not
@@ -318,7 +326,7 @@ the architecture matches. Keep every entry in the same family.
 
 ## Inputs
 
-All 32 are supplied by the env layer; validation lives here, not there.
+All 33 are supplied by the env layer; validation lives here, not there.
 
 | Name | Type | Note |
 |---|---|---|
@@ -342,7 +350,7 @@ All 32 are supplied by the env layer; validation lives here, not there.
 | `eks_app_container_port` | number | must match the Dockerfile's `EXPOSE` and `CMD` |
 | `eks_app_replicas` | number | pod copies to keep running |
 | `eks_app_image_uri` | string | computed in the env layer from the `ecr` module's output — keeps the account ID derived |
-| `eks_app_image_tag` | string | `latest` never changes, so Terraform will not redeploy on a new push; a commit SHA will |
+| `eks_app_image_tag` | string | must be a tag BuildImage re-pushes every build (e.g. `latest`), or the pipeline's restart pulls a stale image |
 | `eks_app_change_cause` | string | the `kubernetes.io/change-cause` annotation — what `kubectl rollout history` prints for the revision |
 | `eks_app_aws_region` | string | computed in the env layer; boto3 reads it for DynamoDB |
 | `eks_app_db_host` | string | computed in the env layer from the `rds` module's output |
@@ -354,10 +362,11 @@ All 32 are supplied by the env layer; validation lives here, not there.
 | `eks_alb_controller_namespace` | string | `kube-system`; also the namespace the Pod Identity association matches |
 | `eks_alb_controller_service_account` | string | the chart creates it and the association matches it — one variable feeds both |
 | `eks_alb_controller_chart_version` | string | pinned; keep in step with the vendored IAM policy's version |
+| `eks_deploy_role_arn` | string | computed in the env layer from `codebuild_deploypods`'s output; the role the access entry admits |
 
 `eks_subnets_ids` and `eks_vpc_id` are computed from data sources in the env layer and so never pass
 through `envs/dev/variables.tf` or `terraform.tfvars` — the same shape as
-`appointments_db_vpc_id` on the `rds` module. The two ARN inputs are computed the same way,
+`appointments_db_vpc_id` on the `rds` module. The three ARN inputs are computed the same way,
 from other modules' outputs, and are likewise absent from `terraform.tfvars`.
 
 Four of the Deployment's inputs are computed the same way — `eks_app_image_uri`,
@@ -369,6 +378,13 @@ Only `eks_app_replicas`, `eks_app_image_tag`, and `eks_app_change_cause` are rea
 template and therefore creates a revision, and the change-cause is what labels it in
 `kubectl rollout history`. It is a declared input rather than a `kubectl annotate` call
 because Terraform strips annotations it does not manage on the next apply.
+
+One annotation is exempt. `kubectl rollout restart`, which the pipeline's DeployPods stage
+runs on every push, works by writing `kubectl.kubernetes.io/restartedAt` into the pod
+template. The Deployment's `lifecycle.ignore_changes` names that single key, so Terraform
+neither strips it nor plans a diff for it. Without the exemption, every apply after a
+pipeline run would delete the annotation, and deleting it is itself a pod-template change
+that restarts the pods again.
 
 With no autoscaler installed, `min`/`max` are guardrails only: `desired` never changes on
 its own.
@@ -424,8 +440,12 @@ Two things follow:
   principal (root, another user) than the one that applied. The cluster is fine;
   `kubectl` from the terminal that ran apply works. Fixing the console needs an
   `aws_eks_access_entry`.
-- **Applying from CI later will not inherit access.** A CodeBuild role would have zero
-  Kubernetes permissions and need an explicit access entry.
+- **CI does not inherit access.** A CodeBuild role starts with zero Kubernetes
+  permissions. `access_entry.tf` gives the DeployPods role one entry with
+  `AmazonEKSEditPolicy`, scoped to `eks_app_namespace` — enough to restart the app, nothing
+  cluster-wide. The policy association references the entry's `principal_arn`, not the
+  variable, so Terraform creates the entry first; associating a policy with an entry that
+  does not exist yet is rejected.
 
 ## Known gaps
 
@@ -439,11 +459,11 @@ Two things follow:
 - **No `aws_eks_addon` resources.** `bootstrap_self_managed_addons` defaults to `true`, so
   EKS installs the VPC CNI, CoreDNS, and kube-proxy itself, outside Terraform. They work;
   their versions just cannot be pinned or upgraded from here.
-- **No pipeline deploy stage.** The application is deployed by `terraform apply` from a
-  laptop, not by CodePipeline. With `eks_app_image_tag = "latest"` a new image pushed to
-  ECR produces no Terraform diff, so picking it up is `kubectl rollout restart deployment
-  appointments-deployment`. Setting the tag to a commit SHA makes the deploy explicit but
-  moves the bump to a hand edit.
+- **The pipeline deploys by restart, so rollback goes through git.** DeployPods restarts the
+  pods onto whatever image `eks_app_image_tag` currently points at. That tag is reused on
+  every build, so `kubectl rollout undo` restores the old pod template but pulls the *new*
+  image. Rollback is `git revert` and a push. Tagging each deploy with its commit SHA would
+  make `rollout undo` work, but Terraform would then fight the pipeline over the tag.
 - **No readiness probe on the Deployment.** A pod counts as ready the moment the container
   starts. The ALB's own health check (HTTP `GET /`) keeps traffic off a pod until Django
   answers, but Kubernetes does not wait for it, so a rollout can retire old pods before the
