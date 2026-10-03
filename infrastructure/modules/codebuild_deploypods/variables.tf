@@ -55,7 +55,7 @@ variable "deploypods_codebuild_buildspec" {
 }
 
 variable "deploypods_codebuild_image" {
-  description = "Managed CodeBuild image the build container runs. Must ship the Python version the buildspec requests."
+  description = "Managed CodeBuild image the build container runs."
   type        = string
 }
 
