@@ -1,0 +1,22 @@
+# Provided by the Amazon Cloud Institute (ACI) as Capstone 2 Lab 10 material. See NOTICE.
+#
+# Author's changes to the ACI original:
+#   - Cluster name read from $EKS_CLUSTER_NAME (injected by Terraform) instead of hardcoded "eks-cluster".
+#   - `kubectl rollout restart` instead of delete + apply: Terraform owns the Deployment,
+#     and the manifests/ files are not applied.
+
+version: 0.2
+
+phases:
+  pre_build: #point kubectl at the cluster
+    commands:
+      - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+
+  build: #swap running pods for fresh ones that pull the new image
+    commands:
+      - kubectl rollout restart deployment appointments-deployment
+
+  post_build: #print the site's address
+    commands:
+      - sleep 30
+      - aws elbv2 describe-load-balancers --query 'LoadBalancers[*].[DNSName]' --output text
