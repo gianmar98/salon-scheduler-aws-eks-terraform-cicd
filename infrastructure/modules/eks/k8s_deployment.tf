@@ -8,6 +8,13 @@ resource "kubernetes_deployment_v1" "appointments" {
 
   depends_on = [kubernetes_service_account_v1.appointments]
 
+  #Kubernetes tags when changes the pods. TF has its own copy of what settings are, so everytime we run TF apply
+  # TF compares the 2, finds a tag that it did not write, and removes it. Meaninge very TF apply will refresh the pods
+  # Here says "Do not touch tag, it belongs to the pipeline"
+  lifecycle {
+    ignore_changes = [spec[0].template[0].metadata[0].annotations["kubectl.kubernetes.io/restartedAt"]]
+  }
+
   metadata { #deployment's ID
     name      = var.eks_app_selector
     namespace = var.eks_app_namespace #same folder as service (default)

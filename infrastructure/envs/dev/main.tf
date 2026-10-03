@@ -109,6 +109,11 @@ module "application_pipeline" {
   #Build image
   application_pipeline_codebuild_buildimage_project_name = module.buildimage_codebuild_project.buildimage_codebuild_project_name
   application_pipeline_codebuild_buildimage_project_arn  = module.buildimage_codebuild_project.buildimage_codebuild_project_arn
+  #Restart pods
+  application_pipeline_codebuild_deploypods_project_arn  = module.deploypods_codebuild_project.deploypods_codebuild_project_arn
+  application_pipeline_codebuild_deploypods_project_name = module.deploypods_codebuild_project.deploypods_codebuild_project_name
+  application_pipeline_deploypods_enabled                = var.eks_enabled && var.eks_app_enabled
+
 }
 
 module "rds_db" {

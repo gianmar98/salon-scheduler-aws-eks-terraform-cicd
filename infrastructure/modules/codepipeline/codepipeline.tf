@@ -100,4 +100,27 @@ resource "aws_codepipeline" "application_pipeline" {
       }
     }
   }
+
+  dynamic "stage" { #the dynamic block creates a block once per item in a list.
+    # with a list of 1 item [1] (you get one DeployPods stage) and with empty list [], the stage isn't there at all
+    for_each = var.application_pipeline_deploypods_enabled ? [1] : []
+
+    content {
+      name = "DeployPods"
+
+      action {
+        name            = "DeployPods"
+        category        = "Build"
+        owner           = "AWS"
+        provider        = "CodeBuild"
+        version         = "1"
+        input_artifacts = ["source_output"] #gives stage the code where the buildspec lives
+
+        configuration = {
+          ProjectName = var.application_pipeline_codebuild_deploypods_project_name
+        }
+      }
+
+    }
+  }
 }

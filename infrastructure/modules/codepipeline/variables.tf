@@ -87,3 +87,23 @@ variable "application_pipeline_codebuild_buildimage_project_arn" {
     error_message = "application_pipeline_codebuild_buildimage_project_arn must be a CodeBuild project ARN."
   }
 }
+
+#Restart Pods
+variable "application_pipeline_codebuild_deploypods_project_name" {
+  description = "Name of the CodeBuild project the Build DeployPods stage invokes"
+  type        = string
+}
+
+variable "application_pipeline_codebuild_deploypods_project_arn" {
+  description = "ARN of that same CodeBuild DeployPods project — scopes the role's StartBuild grant"
+  type        = string
+  validation {
+    condition     = can(regex("^arn:aws:codebuild:", var.application_pipeline_codebuild_deploypods_project_arn))
+    error_message = "application_pipeline_codebuild_deploypods_project_arn must be a CodeBuild project ARN."
+  }
+}
+
+variable "application_pipeline_deploypods_enabled" {
+  description = "Adds the DeployPods stage. False while the cluster is down, so pushes do not fail"
+  type        = bool
+}
