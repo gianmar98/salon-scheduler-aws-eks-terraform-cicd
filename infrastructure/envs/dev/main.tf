@@ -166,6 +166,22 @@ module "buildimage_codebuild_project" {
   buildimage_codebuild_ecr_repository_arn = module.ecr.appointments_ecr_repository_arn
 }
 
+
+module "deploypods_codebuild_project" {
+  source                                    = "../../modules/codebuild_deploypods"
+  deploypods_codebuild_project_name         = "${var.deploypods_codebuild_project_name}${local.env_suffix}"
+  deploypods_codebuild_codeconnection_arn   = aws_codeconnections_connection.github.arn
+  deploypods_codebuild_source_location      = var.deploypods_codebuild_source_location
+  deploypods_codebuild_source_version       = var.deploypods_codebuild_source_version
+  deploypods_codebuild_buildspec            = var.deploypods_codebuild_buildspec
+  deploypods_codebuild_image                = var.deploypods_codebuild_image
+  deploypods_codebuild_compute_type         = var.deploypods_codebuild_compute_type
+  deploypods_codebuild_build_timeout        = var.deploypods_codebuild_build_timeout
+  deploypods_codebuild_log_retention_days   = var.deploypods_codebuild_log_retention_days
+  deploypods_codebuild_artifact_bucket_name = "${var.application_pipeline_artifact_bucket_name}${local.env_suffix}"
+  deploypods_codebuild_eks_cluster_name     = "${var.eks_cluster_name}${local.env_suffix}"
+}
+
 module "eks" {
   count            = var.eks_enabled ? 1 : 0
   source           = "../../modules/eks"
@@ -214,4 +230,6 @@ module "eks" {
   #External
   eks_app_dynamodb_announcements_table_arn = module.announcements_dynamo_db_table.announcements_table_arn
   eks_app_rds_db_user_arn                  = "arn:aws:rds-db:${data.aws_region.currentUser.region}:${data.aws_caller_identity.currentUser.account_id}:dbuser:${module.rds_db.appointments_db_resource_id}/${var.appointments_db_iam_username}"
+  #Link between codebuild role and eks module gives that role tha access pass to restart the pods
+  eks_deploy_role_arn = module.deploypods_codebuild_project.deploypods_codebuild_service_role_arn
 }

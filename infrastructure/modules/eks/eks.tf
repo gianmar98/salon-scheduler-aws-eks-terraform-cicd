@@ -16,9 +16,9 @@ resource "aws_eks_cluster" "salon_eks_cluster" {
   version  = var.eks_kubernetes_version
 
   vpc_config {
-    subnet_ids          = var.eks_subnets_ids
+    subnet_ids = var.eks_subnets_ids
     public_access_cidrs = concat(["${chomp(data.http.myip.response_body)}/32"], #only my current IP to access for now. chomp strips the response's trailing newline
-      data.aws_ip_ranges.codebuild.cidr_blocks) #+ ADDING Aws codebuild ip range
+    data.aws_ip_ranges.codebuild.cidr_blocks)                                   #+ ADDING Aws codebuild ip range
 
 
     # Required whenever public_access_cidrs is narrowed: nodes reach the API server
