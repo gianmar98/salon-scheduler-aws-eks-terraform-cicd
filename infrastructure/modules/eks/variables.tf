@@ -181,3 +181,8 @@ variable "eks_vpc_id" {
   description = "VPC the cluster runs in — passed to the controller because pods cannot reach the EC2 metadata service to discover it. Not a tfvars dial: the env layer reads it from data.aws_vpc.default"
   type        = string
 }
+
+variable "eks_deploy_role_arn" {
+  description = "IAM Role of CodeBuild project that restarts the app's pods. Gets edit access to the app's namespace only"
+  type        = string
+}

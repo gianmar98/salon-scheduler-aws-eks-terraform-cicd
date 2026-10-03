@@ -5,6 +5,11 @@ data "http" "myip" {
   url = "https://checkip.amazonaws.com"
 }
 
+data "aws_ip_ranges" "codebuild" {
+  regions  = [data.aws_region.current.region]
+  services = ["codebuild"]
+}
+
 resource "aws_eks_cluster" "salon_eks_cluster" {
   name     = var.eks_cluster_name
   role_arn = aws_iam_role.salon_eks_cluster_role.arn
@@ -12,7 +17,9 @@ resource "aws_eks_cluster" "salon_eks_cluster" {
 
   vpc_config {
     subnet_ids          = var.eks_subnets_ids
-    public_access_cidrs = ["${chomp(data.http.myip.response_body)}/32"] #only my current IP to access for now. chomp strips the response's trailing newline
+    public_access_cidrs = concat(["${chomp(data.http.myip.response_body)}/32"], #only my current IP to access for now. chomp strips the response's trailing newline
+      data.aws_ip_ranges.codebuild.cidr_blocks) #+ ADDING Aws codebuild ip range
+
 
     # Required whenever public_access_cidrs is narrowed: nodes reach the API server
     # from inside the VPC, and their IPs aren't on the allowlist. Without this they
