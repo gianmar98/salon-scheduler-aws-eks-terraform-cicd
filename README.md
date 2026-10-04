@@ -1,16 +1,36 @@
-# salon-scheduler-aws-eks-terraform-cicd
+# Salon Scheduler
 
-A Django appointment-booking app for a hair salon, with the AWS infrastructure and CI
-that runs it defined in Terraform.
+An online booking site for a hair salon, running on Amazon EKS. Customers pick a
+service, a stylist, a day and a time slot. Every push to `main` is linted, tested,
+built into a container image and rolled out to the cluster, with no console clicks
+along the way.
+
+![Salon Scheduler booking page](images/salon-scheduler-home.png)
+
+The two banners at the top are announcements stored in DynamoDB, so the salon can change
+them without a deploy.
 
 ```
-appointments-app/    Django app — ACI Capstone 2 starter code
-infrastructure/      Terraform — modules/ + envs/dev
+appointments-app/    Django app (ACI Capstone 2 starter code)
+infrastructure/      Terraform: modules/ + envs/dev
 ```
 
 Authorship is split and the split matters: everything under `appointments-app/` was
 provided by the Amazon Cloud Institute, everything under `infrastructure/` is original.
 [`NOTICE`](NOTICE) records exactly which is which.
+
+## Architecture
+
+![Salon Scheduler architecture](images/architecture.png)
+
+A push to `main` goes through a CodeConnections GitHub connection into CodePipeline,
+which runs three CodeBuild projects in order: tests, image build, then a pod restart on
+EKS. The app runs as two pods on a spot node group in the default VPC, behind an
+Application Load Balancer that the AWS Load Balancer Controller creates from a
+Kubernetes Ingress. The pods reach RDS MySQL with short-lived IAM tokens and read
+announcements from DynamoDB, both through EKS Pod Identity, so there is no database
+password or access key in the app. The numbered steps are explained in the panel on the
+right of the diagram.
 
 ## What is built
 
