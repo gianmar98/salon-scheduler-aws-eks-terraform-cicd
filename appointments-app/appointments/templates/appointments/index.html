@@ -1,10 +1,18 @@
 {% extends "appointments/base.html" %}
 {% load url_extras %}
 {% block content %}
+
+<section class="hero">
+    <p class="eyebrow mb-2">Online booking</p>
+    <h1 class="mb-3">Reserve your next appointment</h1>
+    <p class="mb-0">Choose a service, your stylist, and a time that suits you. We'll take care of the rest.</p>
+</section>
+
 {% if messages %}
     {% for message in messages %}
-        <div class="alert alert-primary" role="alert">
-            {{ message }}
+        <div class="alert alert-primary mt-3" role="alert">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+            <span>{{ message }}</span>
         </div>
     {% endfor %}
 {% endif %}
@@ -12,98 +20,121 @@
 <!-- (3) -->
 {% if announcements %}
     {% for announcement in announcements %}
-        <div class="alert alert-secondary" role="alert">
-            {{ announcement }}
+        <div class="alert alert-secondary mt-3" role="alert">
+            <i class="bi bi-megaphone" aria-hidden="true"></i>
+            <span>{{ announcement }}</span>
         </div>
     {% endfor %}
 {% endif %}
 
-    <h2>Services</h2>
+    <section class="booking-section mt-4">
+        <p class="eyebrow mb-1">Step 1</p>
+        <h2>Services</h2>
+        <p class="section-note">Every visit includes a consultation with your stylist.</p>
 
-    <div class="row row-cols-1 row-cols-md-3 mb-3 text-center">
-        {% for service in services_all %}
-        <div class="col">
-            <div class="card mb-4 rounded-3 shadow-sm {% if service.service_id == selected_service_id %}border-primary{% endif %}">
-                <div class="card-body">
-                    <h3 class="card-title">{{service.service_name}}</h3>
-                    <ul class="list-unstyled mt-3 mb-4">
-                        <li>{{service.description}}</li>
-                        <li>${{service.price}}</li>
-                        <li>{{service.duration}} minutes</li>
-                      </ul>
-                    <a class="w-100 btn btn-lg {% if service.service_id == selected_service_id %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-service' service.service_id %}#hairdresser">Select</a>
+        <div class="row row-cols-1 row-cols-md-3 g-4 text-center">
+            {% for service in services_all %}
+            <div class="col">
+                <div class="card h-100 position-relative {% if service.service_id == selected_service_id %}border-primary{% endif %}">
+                    {% if service.service_id == selected_service_id %}<span class="selected-badge">Selected</span>{% endif %}
+                    <div class="card-body d-flex flex-column">
+                        <h3 class="card-title">{{service.service_name}}</h3>
+                        <p class="service-desc mt-2">{{service.description}}</p>
+                        <div class="service-price mb-2">${{service.price}}</div>
+                        <div class="service-meta mb-4">
+                            <span><i class="bi bi-clock me-1" aria-hidden="true"></i>{{service.duration}} minutes</span>
+                        </div>
+                        <a class="mt-auto w-100 btn btn-lg {% if service.service_id == selected_service_id %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-service' service.service_id %}#hairdresser">Select</a>
+                    </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    <hr>
+    </section>
 
     {% if hairdressers_all %}
-    <h2 id="hairdresser">Hairdressers</h2>
-    <div class="row row-cols-1 row-cols-md-3 mb-3 text-center">
-        {% for hairdresser in hairdressers_all %}
-        <div class="col">
-            <div class="card mb-4 rounded-3 shadow-sm {% if hairdresser.hairdresser_id == selected_hairdresser_id %}border-primary{% endif %}">
-                <div class="card-body">
-                    <h3 class="card-title">{{hairdresser.first_name}} {{hairdresser.last_name}}</h3>
-                    <i class="bi bi-file-person" style="font-size: 4rem; "></i>
-                    <a class="w-100 btn btn-lg {% if hairdresser.hairdresser_id == selected_hairdresser_id %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-hairdresser' selected_service_id hairdresser.hairdresser_id %}#date">Select</a>
+    <section class="booking-section" id="hairdresser">
+        <p class="eyebrow mb-1">Step 2</p>
+        <h2>Hairdressers</h2>
+        <p class="section-note">Choose who you'd like to see.</p>
+
+        <div class="row row-cols-1 row-cols-md-3 g-4 text-center">
+            {% for hairdresser in hairdressers_all %}
+            <div class="col">
+                <div class="card h-100 position-relative {% if hairdresser.hairdresser_id == selected_hairdresser_id %}border-primary{% endif %}">
+                    {% if hairdresser.hairdresser_id == selected_hairdresser_id %}<span class="selected-badge">Selected</span>{% endif %}
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <span class="avatar mb-3" aria-hidden="true">{{hairdresser.first_name|first}}{{hairdresser.last_name|first}}</span>
+                        <h3 class="card-title mb-4">{{hairdresser.first_name}} {{hairdresser.last_name}}</h3>
+                        <a class="mt-auto w-100 btn btn-lg {% if hairdresser.hairdresser_id == selected_hairdresser_id %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-hairdresser' selected_service_id hairdresser.hairdresser_id %}#date">Select</a>
+                    </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    <hr>
+    </section>
     {% endif %}
 
 
     {% if dates_all %}
-    <h2 id="date">Date</h2>
+    <section class="booking-section" id="date">
+        <p class="eyebrow mb-1">Step 3</p>
+        <h2>Date</h2>
+        <p class="section-note">Available over the next seven days.</p>
 
-    {% for date in dates_all %}
-    <a class="btn {% if date.1 == selected_date %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-date' selected_service_id selected_hairdresser_id date.1 %}#time">
-            {{date.0}}
-        </a>
-    {% endfor %}
-
-    <hr>
+        <div class="chip-row">
+        {% for date in dates_all %}
+            <a class="btn {% if date.1 == selected_date %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% relative_url 'index-date' selected_service_id selected_hairdresser_id date.1 %}#time">
+                {{date.0}}
+            </a>
+        {% endfor %}
+        </div>
+    </section>
     {% endif %}
 
 
     {% if start_times_all %}
-    <h2 id="time">Time</h2>
-    <p>{{start_times_available_count}} start times available</p>
+    <section class="booking-section" id="time">
+        <p class="eyebrow mb-1">Step 4</p>
+        <h2>Time</h2>
+        <p class="section-note"><span class="availability"><i class="bi bi-calendar-check" aria-hidden="true"></i>{{start_times_available_count}} start times available</span></p>
 
-    <form method="post" action="{% relative_url 'create' %}">
-        {% csrf_token %}
-        <input type="hidden" name="service" value="{{selected_service_id}}">
-        <input type="hidden" name="hairdresser" value="{{selected_hairdresser_id}}">
-        <input type="hidden" name="date" value="{{selected_date}}">
+        <form method="post" action="{% relative_url 'create' %}" class="booking-panel">
+            {% csrf_token %}
+            <input type="hidden" name="service" value="{{selected_service_id}}">
+            <input type="hidden" name="hairdresser" value="{{selected_hairdresser_id}}">
+            <input type="hidden" name="date" value="{{selected_date}}">
 
-        <div class="mb-3">
-        {% for time in start_times_all %}
-            <input
-                type="radio"
-                class="btn-check"
-                value="{{time.time_formatted}}"
-                name="appointment_time"
-                id="{{time.time_formatted}}"
-                required {% if time.is_blocked %}disabled{% endif %}>
-            <label class="btn btn-outline-primary" for="{{time.time_formatted}}">{{time.time_formatted}}</label>
-        {% endfor %}
-        </div>
+            <fieldset class="mb-4">
+                <legend class="form-label fs-6 mb-3">Start time</legend>
+                <div class="time-grid">
+                {% for time in start_times_all %}
+                    <div>
+                        <input
+                            type="radio"
+                            class="btn-check"
+                            value="{{time.time_formatted}}"
+                            name="appointment_time"
+                            id="{{time.time_formatted}}"
+                            required {% if time.is_blocked %}disabled{% endif %}>
+                        <label class="btn btn-outline-primary" for="{{time.time_formatted}}">{{time.time_formatted}}</label>
+                    </div>
+                {% endfor %}
+                </div>
+                <div class="form-text mt-2">Crossed-out times are already booked or in the past.</div>
+            </fieldset>
 
-        <div class="mb-3">
-        <label for="customer_contact" class="form-label">Contact details:</label>
-        <div class="input-group">
-            <textarea id="customer_contact" name="customer_contact" class="form-control" required></textarea>
-        </div>
-        </div>
+            <div class="mb-4">
+            <label for="customer_contact" class="form-label">Contact details:</label>
+            <div class="input-group">
+                <textarea id="customer_contact" name="customer_contact" class="form-control" rows="3" placeholder="Your name and a phone number or email" aria-describedby="customer_contact_help" required></textarea>
+            </div>
+            <div id="customer_contact_help" class="form-text mt-2">We'll use this to confirm your appointment.</div>
+            </div>
 
-        <input type="submit" class="btn btn-primary" value="Confirm">
-    </form>
-    <hr>
+            <input type="submit" class="btn btn-primary btn-lg px-5" value="Confirm">
+        </form>
+    </section>
     {% endif %}
 
 {% endblock %}

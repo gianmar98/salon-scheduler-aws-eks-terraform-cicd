@@ -139,5 +139,14 @@ Two files outside infrastructure/ are also the author's own work, not ACI's:
 appointments-app/COMMANDS.md, an annotated reference for the local, Docker, ECR, and
 kubectl workflows, written for this repository and this machine; and the root README.md.
 
+The visual design of the two templates, appointments/templates/appointments/base.html and
+index.html, is also the author's own work. ACI supplied both templates; their Django
+template logic — every {% if %}, {% for %}, URL tag, form field, hidden input, and the
+announcements block — is ACI's and is unchanged. The author replaced the presentation
+layer: the <style> block (colour palette, typography, buttons, cards, date and time
+chips), the Google Fonts link, the header and hero copy, the step labels and helper text,
+the stylist initials avatars, and the icons. This also replaces the Lab 10 background
+colour (cadetblue) in base.html, which the lab used only to show a deploy.
+
 Any further files added by the repository author will be noted here as they are
 introduced.

@@ -5,30 +5,194 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Appointments</title>
+    <title>Appointments · Salon Scheduler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <style>
-        body { background-color:cadetblue; }
+        /* Visual layer only (author's own, see NOTICE). Markup classes are ACI's Bootstrap ones. */
+        :root {
+            --ivory: #FAF7F2;
+            --card: #FFFFFF;
+            --ink: #1C1917;
+            --ink-soft: #44403C;
+            --muted: #6B6560;
+            --line: #E7E1D8;
+            --gold: #A16207;
+            --gold-soft: #F5EBDD;
+            --radius: 14px;
+            --ease: cubic-bezier(.2, .7, .2, 1);
+        }
+
+        body {
+            background-color: var(--ivory);
+            color: var(--ink);
+            font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, .brand-name {
+            font-family: "Playfair Display", Georgia, serif;
+            letter-spacing: -0.01em;
+            color: var(--ink);
+        }
+
+        a { color: var(--ink); }
+
+        :focus-visible {
+            outline: 3px solid var(--gold);
+            outline-offset: 2px;
+        }
+
+        /* Header */
+        .site-header {
+            background: var(--ink);
+            color: var(--ivory);
+        }
+        .brand-name { color: var(--ivory); font-size: 1.35rem; font-weight: 600; }
+        .brand-mark {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 1px solid rgba(250, 247, 242, .35); color: #E9C98B;
+        }
+        .header-tagline { color: rgba(250, 247, 242, .7); font-size: .875rem; }
+
+        /* Hero */
+        .hero { padding: 3.5rem 0 1rem; }
+        .eyebrow {
+            text-transform: uppercase; letter-spacing: .14em;
+            font-size: .75rem; font-weight: 600; color: var(--gold);
+        }
+        .hero h1 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 600; }
+        .hero p { color: var(--muted); max-width: 46ch; }
+
+        /* Sections */
+        .booking-section { padding: 2.5rem 0; border-top: 1px solid var(--line); scroll-margin-top: 1rem; }
+        .booking-section h2 { font-size: 1.75rem; font-weight: 600; margin-bottom: .25rem; }
+        .section-note { color: var(--muted); margin-bottom: 1.5rem; }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: var(--radius) !important;
+            box-shadow: 0 1px 2px rgba(28, 25, 23, .04) !important;
+            transition: box-shadow .2s var(--ease), border-color .2s var(--ease), transform .2s var(--ease);
+        }
+        .card:hover { box-shadow: 0 10px 30px rgba(28, 25, 23, .08) !important; transform: translateY(-2px); }
+        .card.border-primary { border: 1.5px solid var(--ink) !important; }
+        .card-body { padding: 1.75rem; }
+        .card-title { font-size: 1.4rem; font-weight: 600; }
+        .service-desc { color: var(--muted); min-height: 3.2em; }
+        .service-meta {
+            display: flex; justify-content: center; gap: 1.25rem;
+            color: var(--ink-soft); font-size: .95rem;
+        }
+        .service-price { font-family: "Playfair Display", Georgia, serif; font-size: 1.6rem; font-weight: 600; color: var(--ink); }
+        .selected-badge {
+            position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+            background: var(--ink); color: var(--ivory);
+            font-size: .7rem; letter-spacing: .08em; text-transform: uppercase;
+            padding: .3rem .6rem; border-radius: 999px;
+        }
+        .avatar {
+            width: 84px; height: 84px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--gold-soft); color: var(--gold);
+            font-family: "Playfair Display", Georgia, serif; font-size: 1.9rem; font-weight: 600;
+            border: 1px solid #EAD9BF;
+        }
+
+        /* Buttons: Bootstrap 5.3 variables, so the existing classes restyle in place */
+        .btn {
+            border-radius: 999px; font-weight: 500;
+            min-height: 44px; padding-left: 1.25rem; padding-right: 1.25rem;
+            transition: background-color .18s var(--ease), color .18s var(--ease), border-color .18s var(--ease);
+        }
+        .btn-lg { font-size: 1rem; }
+        .btn-primary {
+            --bs-btn-bg: var(--ink); --bs-btn-border-color: var(--ink);
+            --bs-btn-hover-bg: #292524; --bs-btn-hover-border-color: #292524;
+            --bs-btn-active-bg: #0C0A09; --bs-btn-active-border-color: #0C0A09;
+            --bs-btn-disabled-bg: var(--ink); --bs-btn-disabled-border-color: var(--ink);
+            --bs-btn-focus-shadow-rgb: 161, 98, 7;
+        }
+        .btn-outline-primary {
+            --bs-btn-color: var(--ink); --bs-btn-border-color: #CFC6BA;
+            --bs-btn-hover-color: var(--ivory); --bs-btn-hover-bg: var(--ink); --bs-btn-hover-border-color: var(--ink);
+            --bs-btn-active-color: var(--ivory); --bs-btn-active-bg: var(--ink); --bs-btn-active-border-color: var(--ink);
+            --bs-btn-disabled-color: #A8A29E; --bs-btn-disabled-border-color: var(--line);
+            --bs-btn-focus-shadow-rgb: 161, 98, 7;
+            background: var(--card);
+        }
+
+        /* Date and time chips */
+        .chip-row { display: flex; flex-wrap: wrap; gap: .6rem; }
+        .chip-row .btn { min-width: 6.5rem; }
+        .time-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: .6rem; }
+        .time-grid .btn { width: 100%; font-variant-numeric: tabular-nums; }
+        .btn-check:disabled + .btn { text-decoration: line-through; opacity: .55; }
+        .availability {
+            display: inline-flex; align-items: center; gap: .4rem;
+            background: var(--gold-soft); color: #7C4A03;
+            padding: .35rem .8rem; border-radius: 999px; font-size: .875rem; font-weight: 500;
+        }
+
+        /* Form */
+        .form-label { font-weight: 600; }
+        .form-control {
+            border-radius: 12px; border-color: #CFC6BA; padding: .85rem 1rem; font-size: 1rem;
+        }
+        .form-control:focus { border-color: var(--ink); box-shadow: 0 0 0 .2rem rgba(161, 98, 7, .2); }
+        .form-text { color: var(--muted); }
+        .booking-panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.75rem; }
+
+        /* Alerts */
+        .alert { border-radius: 12px; border: 1px solid var(--line); display: flex; gap: .75rem; align-items: flex-start; }
+        .alert-primary { background: #ECF5EE; border-color: #CFE3D4; color: #1E4D2B; }
+        .alert-secondary { background: var(--gold-soft); border-color: #EAD9BF; color: #5C3B07; }
+
+        /* Footer */
+        .site-footer { border-top: 1px solid var(--line); color: var(--muted); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition: none !important; }
+            .card:hover { transform: none; }
+        }
     </style>
 
 </head>
 
 <body>
 
-    <div class="container my-5">
+    <header class="site-header">
+        <div class="container d-flex align-items-center justify-content-between py-3">
+            <div class="d-flex align-items-center gap-3">
+                <span class="brand-mark" aria-hidden="true"><i class="bi bi-scissors"></i></span>
+                <span class="brand-name">Salon Scheduler</span>
+            </div>
+            <span class="header-tagline d-none d-sm-inline">Book in under a minute</span>
+        </div>
+    </header>
+
+    <main class="container mb-5">
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
     <div class="container">
-        <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
-          <div class="col-md-4 d-flex align-items-center">
-            <span class="mb-3 mb-md-0 text-body-secondary"><small class="text-muted">Time in Los Angeles <small>{% now "SHORT_DATETIME_FORMAT" %}</small></span>
+        <footer class="site-footer d-flex flex-wrap justify-content-between align-items-center py-4 my-4">
+          <div class="col-md-6 d-flex align-items-center gap-2">
+            <i class="bi bi-clock" aria-hidden="true"></i>
+            <span><small>Time in Los Angeles <small>{% now "SHORT_DATETIME_FORMAT" %}</small></small></span>
           </div>
         </footer>
       </div>
-      
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
