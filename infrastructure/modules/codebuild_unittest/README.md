@@ -217,6 +217,9 @@ Written by hand the same way, from `batch-get-projects`, `batch-get-report-group
 
 ## Gotchas
 
+- **`delete_reports = true` is what lets `terraform destroy` finish.** AWS refuses to
+  delete a report group that still holds reports, and every pipeline run adds one. The
+  import originally pinned it to `false`; the first full teardown failed on it.
 - **Renaming the project renames almost everything.** The role, both policies, the log
   group, and both report groups derive their names from
   `unittest_codebuild_project_name`, so changing it replaces seven objects, not one.

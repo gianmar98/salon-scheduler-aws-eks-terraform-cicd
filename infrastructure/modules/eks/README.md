@@ -2,9 +2,9 @@
 
 A Kubernetes cluster and one managed node group, plus the two IAM roles neither can start
 without, plus the Kubernetes objects that run the application on it, plus the AWS Load
-Balancer Controller that puts an Application Load Balancer in front of them. The pipeline
-still stops at ECR — the image is deployed from here, by `terraform apply`, not by a
-pipeline stage.
+Balancer Controller that puts an Application Load Balancer in front of them. `terraform
+apply` creates the app's objects here; after that, the pipeline's DeployPods stage restarts
+the pods onto each new image.
 
 ## Provenance
 

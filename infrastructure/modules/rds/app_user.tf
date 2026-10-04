@@ -6,6 +6,10 @@ resource "mysql_user" "app" {
   user        = var.appointments_db_iam_username
   host        = "%"                       #"%" = connect from anywhere.
   auth_plugin = "AWSAuthenticationPlugin" #no password for login so it accepts AWS TOKENS
+
+  # The provider connects from this machine's IP. Without this, destroy can delete that
+  # rule first and then time out trying to drop the user. The grant inherits the order.
+  depends_on = [aws_vpc_security_group_ingress_rule.mysql_from_client]
 }
 
 # Creates and manages privileges given to a user on a MySQL server.

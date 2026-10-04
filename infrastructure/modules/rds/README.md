@@ -115,6 +115,11 @@ running 24/7, or $0 if the account is still inside the 12-month RDS free tier.
 
 ## Gotchas
 
+- **The MySQL user `depends_on` the one-IP ingress rule.** The `mysql` provider connects
+  from the machine running Terraform, through that rule, but nothing in the config links
+  them. Without the `depends_on`, a destroy deleted the rule first and then timed out
+  (`dial tcp …:3306: connect: operation timed out`) trying to drop the user. It also
+  orders a cold build the right way round.
 - **`identifier` must be set.** Without it AWS generates a random `terraform-2026…`
   name, breaking the env-suffix convention every other module follows.
 - **Reachability needs two things, not one.** `publicly_accessible` alone only assigns a

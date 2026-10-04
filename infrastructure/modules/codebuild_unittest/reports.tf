@@ -23,6 +23,8 @@ resource "aws_codebuild_report_group" "unittest" {
   name = "${var.unittest_codebuild_project_name}-${each.key}"
   type = each.value #Either TEST or CODE_COVERAGE
 
+  delete_reports = true # destroy fails with "reports must be deleted" otherwise
+
   export_config {
     type = "NO_EXPORT" #live results are only on CodeBuild, no raw files to S3
   }
